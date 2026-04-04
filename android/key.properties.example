@@ -1,0 +1,8 @@
+# Нусхаи ин файлро ба key.properties баргардонед ва пур кунед.
+# key.properties ба git илова намешавад (дар .gitignore аст).
+
+storePassword=ПАРОЛИ_ХЗОИШГОҲ
+keyPassword=ПАРОЛИ_КАЛИД
+keyAlias=upload
+# Масир нисбат ба ҷузвдони android/ (масалан файл дар android/app/ бошад):
+storeFile=app/upload-keystore.jks
