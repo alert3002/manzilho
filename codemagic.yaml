@@ -1,0 +1,38 @@
+# Codemagic: танҳо як режим барои build (бидуни такрори --release дар UI).
+# Дар барномаи Codemagic: Settings → Use codemagic.yaml from repository → root = ин файл.
+# https://docs.codemagic.io/flutter-configuration/flutter/
+
+workflows:
+  ios-workflow:
+    name: Manzilho iOS
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: tj.manzilho.app
+    scripts:
+      - name: Pub get
+        script: flutter pub get
+      # flutter build ipa пешфарз release аст — дар UI «Additional arguments» холӣ гузоред
+      # ва Build mode = Release нагузоред дубора, то наафтад: --release + --debug
+      - name: Build IPA
+        script: flutter build ipa
+    artifacts:
+      - build/ios/ipa/*.ipa
+
+  android-workflow:
+    name: Manzilho Android
+    max_build_duration: 120
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Pub get
+        script: flutter pub get
+      - name: Build App Bundle
+        script: flutter build appbundle
+    artifacts:
+      - build/app/outputs/**/*.aab
