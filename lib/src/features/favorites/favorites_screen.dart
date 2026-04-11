@@ -7,6 +7,7 @@ import '../../app/favorites_count_provider.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/post_auth_redirect.dart';
+import '../../../gen_l10n/app_localizations.dart';
 import '../../widgets/shimmer.dart';
 import '../home/widgets/listing_card.dart';
 
@@ -83,14 +84,14 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
       } else {
         if (!mounted) return;
         setState(() {
-          _error = 'Не удалось загрузить избранное';
+          _error = AppLocalizations.of(context).favoritesLoadError;
           _loading = false;
         });
       }
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Ошибка сети';
+        _error = AppLocalizations.of(context).networkError;
         _loading = false;
       });
     }
@@ -107,6 +108,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0a0a0a) : const Color(0xFFf8f9fa);
     final text = isDark ? const Color(0xFFe5e7eb) : const Color(0xFF1a1a1a);
@@ -160,10 +162,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('❤️ Избранное', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: text)),
+                Text('❤️ ${l10n.titleFavorites}', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: text)),
                 const SizedBox(height: 12),
                 Text(
-                  'Войдите в аккаунт, чтобы видеть избранные объявления.',
+                  l10n.favoritesLoginPrompt,
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14, color: muted),
                 ),
@@ -171,7 +173,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                 FilledButton(
                   onPressed: () => context.go(profilePathForLogin(returnTo: loginReturnPathFromContext(context))),
                   style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.white),
-                  child: const Text('Войти'),
+                  child: Text(l10n.btnLogin),
                 ),
               ],
             ),
@@ -188,7 +190,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Text('Избранное', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: text)),
+              child: Text(l10n.titleFavorites, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: text)),
             ),
             Expanded(
               child: RefreshIndicator(
@@ -202,7 +204,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                               SizedBox(height: MediaQuery.of(context).size.height * 0.2),
                               Center(child: Text(_error!, style: TextStyle(color: muted))),
                               const SizedBox(height: 16),
-                              TextButton(onPressed: _loadList, child: const Text('Повторить')),
+                              TextButton(onPressed: _loadList, child: Text(l10n.btnRetry)),
                             ],
                           )
                         : _items.isEmpty
@@ -213,7 +215,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                                   Icon(Icons.favorite_border, size: 56, color: muted),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Пока нет избранных объявлений.\nНажмите на сердце на карточке.',
+                                    l10n.favoritesEmpty,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(color: muted, fontSize: 14),
                                   ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'src/app/app.dart';
+import 'src/app/locale_provider.dart';
 import 'src/core/api_client.dart';
 import 'src/core/push_notifications.dart';
 
@@ -18,6 +19,12 @@ void main() async {
       debugPrint('$st');
     }
   }
-  runApp(const ProviderScope(child: ManzilhoApp()));
+  final initialLocale = await loadSavedLocale();
+  runApp(ProviderScope(
+    overrides: [
+      appLocaleProvider.overrideWith((ref) => initialLocale),
+    ],
+    child: const ManzilhoApp(),
+  ));
   WidgetsBinding.instance.addPostFrameCallback((_) => initPushNotifications());
 }

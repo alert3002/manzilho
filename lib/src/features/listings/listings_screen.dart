@@ -6,6 +6,7 @@ import '../../app/theme.dart';
 import '../../core/api_client.dart';
 import '../../widgets/app_footer_info.dart';
 import '../../widgets/shimmer.dart';
+import '../../../gen_l10n/app_localizations.dart';
 import '../home/widgets/listing_card.dart';
 
 /// Саҳифаи рӯйхат + ҷустуҷӯ (`?search=`) — API `/api/listings/list/`
@@ -22,7 +23,9 @@ class _ListingsScreenState extends State<ListingsScreen> {
 
   List<Map<String, dynamic>> _listings = [];
   bool _loading = true;
-  String? _error;
+  /// Localized in build: `dio` → [AppLocalizations.listingsLoadError], else → [AppLocalizations.listingsFailedLoad].
+  bool _errorFromDio = false;
+  bool _loadFailed = false;
 
   @override
   void dispose() {
@@ -48,7 +51,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
     if (!mounted) return;
     setState(() {
       _loading = true;
-      _error = null;
+      _loadFailed = false;
     });
     try {
       final state = GoRouterState.of(context);
@@ -71,19 +74,21 @@ class _ListingsScreenState extends State<ListingsScreen> {
         _listings = maps;
         _loading = false;
       });
-    } on DioException catch (e) {
+    } on DioException catch (_) {
       if (!mounted) return;
       setState(() {
         _listings = [];
         _loading = false;
-        _error = e.message ?? 'Ошибка сети';
+        _loadFailed = true;
+        _errorFromDio = true;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _listings = [];
         _loading = false;
-        _error = 'Не удалось загрузить';
+        _loadFailed = true;
+        _errorFromDio = false;
       });
     }
   }
@@ -107,6 +112,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0a0a0a) : const Color(0xFFf8f9fa);
@@ -118,11 +124,16 @@ class _ListingsScreenState extends State<ListingsScreen> {
     final hasSearch = searchQ != null && searchQ.isNotEmpty;
 
     final title = ownerId != null
-        ? 'Объявления автора'
-        : (hasSearch ? 'Поиск' : 'Объявления');
-    final subtitle = ownerId != null
-        ? 'Все предложения выбранного риелтора / агентства / застройщика'
-        : (hasSearch ? 'Результаты по запросу «$searchQ»' : 'Обычные объявления');
+        ? t.listingsAuthorTitle
+        : (hasSearch ? t.listingsSearchTitle : t.listingsDefaultTitle);
+    final String subtitle;
+    if (ownerId != null) {
+      subtitle = t.listingsAuthorSubtitle;
+    } else if (searchQ != null && searchQ.isNotEmpty) {
+      subtitle = t.listingsSearchSubtitle(searchQ);
+    } else {
+      subtitle = t.listingsNormalSubtitle;
+    }
 
     return Scaffold(
       backgroundColor: bg,
@@ -162,7 +173,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                       const SizedBox(height: 10),
                       TextButton(
                         onPressed: () => context.go('/listings'),
-                        child: const Text('Показать объявления всех авторов'),
+                        child: Text(t.listingsShowAllAuthors),
                       ),
                     ],
                     if (ownerId == null) ...[
@@ -183,7 +194,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                                   controller: _searchCtrl,
                                   style: TextStyle(color: text, fontSize: 15),
                                   decoration: InputDecoration(
-                                    hintText: 'Город, адрес, описание…',
+                                    hintText: t.hintCityAddress,
                                     hintStyle: TextStyle(color: muted, fontSize: 15),
                                     prefixIcon: Icon(Icons.search_rounded, color: muted),
                                     suffixIcon: _searchCtrl.text.isNotEmpty
@@ -213,7 +224,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
-                                  child: const Text('Найти', style: TextStyle(fontWeight: FontWeight.w700)),
+                                  child: Text(t.btnFind, style: const TextStyle(fontWeight: FontWeight.w700)),
                                 ),
                               ),
                             ],
@@ -270,7 +281,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                   ),
                 ),
               )
-            else if (_error != null)
+            else if (_loadFailed)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
@@ -281,12 +292,16 @@ class _ListingsScreenState extends State<ListingsScreen> {
                       children: [
                         Icon(Icons.wifi_off_rounded, size: 56, color: muted),
                         const SizedBox(height: 12),
-                        Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 15)),
+                        Text(
+                          _errorFromDio ? t.listingsLoadError : t.listingsFailedLoad,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: muted, fontSize: 15),
+                        ),
                         const SizedBox(height: 16),
                         FilledButton(
                           onPressed: _load,
                           style: FilledButton.styleFrom(backgroundColor: manzilhoOrange, foregroundColor: Colors.white),
-                          child: const Text('Повторить'),
+                          child: Text(t.btnRetry),
                         ),
                       ],
                     ),
@@ -305,7 +320,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                         Icon(Icons.search_off_rounded, size: 72, color: muted.withValues(alpha: 0.85)),
                         const SizedBox(height: 20),
                         Text(
-                          hasSearch ? 'Ничего не найдено.' : 'Объявлений пока нет.',
+                          hasSearch ? t.listingsEmptySearch : t.listingsEmpty,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
@@ -317,7 +332,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                         if (!hasSearch && ownerId == null) ...[
                           const SizedBox(height: 8),
                           Text(
-                            'Загляните позже или введите запрос выше.',
+                            t.listingsEmptyHint,
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 14, color: muted.withValues(alpha: 0.85), height: 1.4),
                           ),
@@ -343,7 +358,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                   ),
                 ),
               ),
-            if (!_loading && _error == null && _listings.isNotEmpty)
+            if (!_loading && !_loadFailed && _listings.isNotEmpty)
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.only(top: 10),

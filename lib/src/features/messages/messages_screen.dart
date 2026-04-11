@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/unread_messages_provider.dart';
 import '../../core/api_client.dart';
 import '../../core/post_auth_redirect.dart';
+import '../../../gen_l10n/app_localizations.dart';
 
 /// Саҳифаи «Сообщения» — рӯйхати чатҳо + чат; дар мобил рӯйхат пурра, чат алоҳида бо «назад».
 class MessagesScreen extends ConsumerStatefulWidget {
@@ -163,6 +164,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0a0a0a) : const Color(0xFFf5f5f7);
     final surface = isDark ? const Color(0xFF141414) : Colors.white;
@@ -185,14 +187,14 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                 children: [
                   Icon(Icons.chat_bubble_outline, size: 56, color: muted),
                   const SizedBox(height: 16),
-                  Text('Сообщения', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: text)),
+                  Text(l10n.navMessages, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: text)),
                   const SizedBox(height: 8),
-                  Text('Войдите в аккаунт, чтобы видеть чаты с продавцами и покупателями.', textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 15)),
+                  Text(l10n.messagesLoginPrompt, textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 15)),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () => context.go(profilePathForLogin(returnTo: loginReturnPathFromContext(context))),
                     style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
-                    child: const Text('Войти'),
+                    child: Text(l10n.btnLogin),
                   ),
                 ],
               ),
@@ -216,7 +218,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
                 child: Text(
-                  'Сообщения',
+                  l10n.navMessages,
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: text, letterSpacing: -0.5),
                 ),
               ),
@@ -229,11 +231,12 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                         children: [
                           SizedBox(
                             width: 300,
-                            child: _conversationListCard(surface, border, text, muted, accent, isDark, fullBleed: false),
+                            child: _conversationListCard(l10n, surface, border, text, muted, accent, isDark, fullBleed: false),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: _chatPanel(
+                              l10n,
                               surface, surface2, border, text, muted, accent, accentDeep, isDark,
                               showBack: false,
                               emptyHintWide: true,
@@ -243,10 +246,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                       ),
                     )
                   : inChat
-                      ? _chatPanel(surface, surface2, border, text, muted, accent, accentDeep, isDark, showBack: true, emptyHintWide: false)
+                      ? _chatPanel(l10n, surface, surface2, border, text, muted, accent, accentDeep, isDark, showBack: true, emptyHintWide: false)
                       : Padding(
                           padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                          child: _conversationListCard(surface, border, text, muted, accent, isDark, fullBleed: true),
+                          child: _conversationListCard(l10n, surface, border, text, muted, accent, isDark, fullBleed: true),
                         ),
             ),
           ],
@@ -256,6 +259,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   }
 
   Widget _conversationListCard(
+    AppLocalizations l10n,
     Color surface,
     Color border,
     Color text,
@@ -283,7 +287,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               children: [
                 Icon(Icons.forum_rounded, size: 20, color: accent),
                 const SizedBox(width: 8),
-                Text('Чаты', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: text)),
+                Text(l10n.messagesChatsSection, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: text)),
               ],
             ),
           ),
@@ -295,7 +299,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.all(20),
-                          child: Text('Пока нет чатов. Нажмите «Написать» в объявлении.', textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 14, height: 1.4)),
+                          child: Text(l10n.messagesNoChatsYet, textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 14, height: 1.4)),
                         ),
                       )
                     : RefreshIndicator(
@@ -309,7 +313,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                             final id = c['id'];
                             final unread = (c['unread_count'] as num?)?.toInt() ?? 0;
                             final active = _selectedId == id;
-                            final name = c['other_user_name']?.toString() ?? 'Пользователь';
+                            final name = c['other_user_name']?.toString() ?? l10n.messagesUserPlaceholder;
                             final trimmed = name.trim();
                             final initial = trimmed.isNotEmpty ? trimmed.substring(0, 1).toUpperCase() : '?';
                             return Material(
@@ -337,7 +341,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                                           children: [
                                             Text(name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: text), maxLines: 1, overflow: TextOverflow.ellipsis),
                                             const SizedBox(height: 2),
-                                            Text(c['listing_title']?.toString() ?? 'Объявление', style: TextStyle(fontSize: 12, color: muted), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                            Text(c['listing_title']?.toString() ?? l10n.listingFallbackTitle, style: TextStyle(fontSize: 12, color: muted), maxLines: 1, overflow: TextOverflow.ellipsis),
                                             if (c['last_message'] != null && (c['last_message'] as String).isNotEmpty)
                                               Text(c['last_message'].toString(), style: TextStyle(fontSize: 12, color: muted.withValues(alpha: 0.9)), maxLines: 1, overflow: TextOverflow.ellipsis),
                                           ],
@@ -367,6 +371,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   }
 
   Widget _chatPanel(
+    AppLocalizations l10n,
     Color surface,
     Color surface2,
     Color border,
@@ -397,12 +402,12 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                 Icon(Icons.chat_bubble_outline_rounded, size: 56, color: muted.withValues(alpha: 0.7)),
                 const SizedBox(height: 16),
                 Text(
-                  emptyHintWide ? 'Выберите чат слева' : 'Выберите чат из списка',
+                  emptyHintWide ? l10n.messagesSelectChatWide : l10n.messagesSelectChatList,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: muted, fontSize: 15, height: 1.4),
                 ),
                 const SizedBox(height: 8),
-                Text('Или начните переписку из объявления.', textAlign: TextAlign.center, style: TextStyle(color: muted.withValues(alpha: 0.8), fontSize: 13)),
+                Text(l10n.messagesStartFromListing, textAlign: TextAlign.center, style: TextStyle(color: muted.withValues(alpha: 0.8), fontSize: 13)),
               ],
             ),
           ),
@@ -435,13 +440,13 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                   IconButton(
                     onPressed: _closeChat,
                     icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: text),
-                    tooltip: 'Назад',
+                    tooltip: l10n.tooltipBack,
                   ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: showBack ? CrossAxisAlignment.start : CrossAxisAlignment.start,
                     children: [
-                      Text(_selectedConv?['other_user_name']?.toString() ?? 'Чат', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: text)),
+                      Text(_selectedConv?['other_user_name']?.toString() ?? l10n.messagesChatHeaderFallback, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: text)),
                       const SizedBox(height: 2),
                       GestureDetector(
                         onTap: () {
@@ -449,7 +454,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                           if (lid != null) context.push('/listings/$lid');
                         },
                         child: Text(
-                          _selectedConv?['listing_title']?.toString() ?? 'Объявление',
+                          _selectedConv?['listing_title']?.toString() ?? l10n.listingFallbackTitle,
                           style: TextStyle(fontSize: 13, color: accent, fontWeight: FontWeight.w500),
                         ),
                       ),
@@ -466,7 +471,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                 itemCount: _messages.length,
-                itemBuilder: (_, i) => _messageBubble(_messages[i], text, muted, accent, accentDeep, isDark, border),
+                itemBuilder: (_, i) => _messageBubble(l10n, _messages[i], text, muted, accent, accentDeep, isDark, border),
               ),
             ),
           Container(
@@ -483,7 +488,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                       minLines: 1,
                       maxLines: 4,
                       decoration: InputDecoration(
-                        hintText: 'Сообщение…',
+                        hintText: l10n.messagesInputHint,
                         hintStyle: TextStyle(color: muted, fontSize: 15),
                         filled: true,
                         fillColor: isDark ? const Color(0xFF2c2c2e) : Colors.white,
@@ -525,6 +530,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   }
 
   Widget _messageBubble(
+    AppLocalizations l10n,
     Map<String, dynamic> m,
     Color text,
     Color muted,
@@ -536,7 +542,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final isOwn = _isOwnMessage(m);
     final name = m['sender_name']?.toString() ?? '';
     final body = m['text']?.toString() ?? '';
-    final time = _formatTimeShort(m['created_at']);
+    final time = _formatTimeShort(l10n, m['created_at']);
 
     final bubble = Container(
       constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.82),
@@ -582,7 +588,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     );
   }
 
-  String _formatTimeShort(dynamic v) {
+  String _formatTimeShort(AppLocalizations l10n, dynamic v) {
     if (v == null) return '';
     final dt = DateTime.tryParse(v.toString());
     if (dt == null) return v.toString();
@@ -590,8 +596,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final today = DateTime(now.year, now.month, now.day);
     final d = DateTime(dt.year, dt.month, dt.day);
     final t = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    if (d == today) return 'сегодня, $t';
-    if (d == today.subtract(const Duration(days: 1))) return 'вчера, $t';
+    if (d == today) return l10n.messagesTimeToday(t);
+    if (d == today.subtract(const Duration(days: 1))) return l10n.messagesTimeYesterday(t);
     return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')} $t';
   }
 }

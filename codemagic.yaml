@@ -1,12 +1,19 @@
-# Codemagic: танҳо як режим барои build (бидуни такрори --release дар UI).
-# Дар барномаи Codemagic: Settings → Use codemagic.yaml from repository → root = ин файл.
-# https://docs.codemagic.io/flutter-configuration/flutter/
+# Codemagic: https://docs.codemagic.io/yaml-code-signing/signing-ios/
+#
+# ПЕШ АЗ BUILD дар веби Codemagic:
+# 1) Team settings → Integrations → Developer Portal → API key (App Store Connect .p8, Issuer ID, Key ID)
+# 2) codemagic.yaml settings → Code signing identities:
+#    - Apple Distribution certificate (ё Generate бо ҳамон API key)
+#    - Provisioning profile намуди App Store барои tj.manzilho.app (Fetch аз портал)
+# 3) Хатти integrations.app_store_connect-ро бо НОМИ ДОҚИҚИ калид дар Codemagic иваз кунед.
 
 workflows:
   ios-workflow:
     name: Manzilho iOS
     max_build_duration: 120
     instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Codemagic ASC Key
     environment:
       flutter: stable
       xcode: latest
@@ -16,8 +23,11 @@ workflows:
     scripts:
       - name: Pub get
         script: flutter pub get
-      # flutter build ipa пешфарз release аст — дар UI «Additional arguments» холӣ гузоред
-      # ва Build mode = Release нагузоред дубора, то наафтад: --release + --debug
+      - name: CocoaPods
+        script: |
+          cd ios && pod install
+      - name: Apply provisioning profiles to Xcode
+        script: xcode-project use-profiles --project ios/Runner.xcodeproj
       - name: Build IPA
         script: flutter build ipa
     artifacts:

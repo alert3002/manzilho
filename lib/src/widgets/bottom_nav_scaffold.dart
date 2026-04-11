@@ -9,6 +9,7 @@ import '../app/compare_provider.dart';
 import '../app/unread_messages_provider.dart';
 import 'drawer_header_logo.dart';
 import 'manzilho_app_bar.dart';
+import '../../gen_l10n/app_localizations.dart';
 
 class BottomNavScaffold extends ConsumerStatefulWidget {
   const BottomNavScaffold({super.key, required this.child});
@@ -70,6 +71,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
     final favoritesCount = favoritesAsync.valueOrNull ?? 0;
     final compareIds = ref.watch(compareIdsProvider);
     final compareCount = compareIds?.length ?? 0;
+    final t = AppLocalizations.of(context);
 
     return Scaffold(
       key: _scaffoldKey,
@@ -89,7 +91,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
                 children: [
                   const DrawerHeaderLogo(),
                   ListTile(
-                    title: const Text('Главная'),
+                    title: Text(t.navHome),
                     leading: const Icon(Icons.home_outlined),
                     onTap: () {
                       Navigator.pop(context);
@@ -97,7 +99,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
                     },
                   ),
                   ListTile(
-                    title: const Text('Поиск'),
+                    title: Text(t.menuSearch),
                     leading: const Icon(Icons.search),
                     onTap: () {
                       Navigator.pop(context);
@@ -105,7 +107,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
                     },
                   ),
                   ListTile(
-                    title: const Text('Уведомления'),
+                    title: Text(t.menuNotifications),
                     leading: const Icon(Icons.notifications_none_rounded),
                     onTap: () {
                       Navigator.pop(context);
@@ -113,7 +115,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
                     },
                   ),
                   ListTile(
-                    title: const Text('Сравнение'),
+                    title: Text(t.menuCompare),
                     leading: const Icon(Icons.balance),
                     trailing: compareCount > 0
                         ? Container(
@@ -127,10 +129,10 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
                       context.go('/compare');
                     },
                   ),
-                  ListTile(title: const Text('Умный помощник'), leading: const Icon(Icons.smart_toy), onTap: () { Navigator.pop(context); context.go('/assistant'); }),
+                  ListTile(title: Text(t.menuSmartAssistant), leading: const Icon(Icons.smart_toy), onTap: () { Navigator.pop(context); context.go('/assistant'); }),
                   const Divider(height: 1),
                   ListTile(
-                    title: const Text('Профиль'),
+                    title: Text(t.navProfile),
                     leading: const Icon(Icons.person_outline),
                     onTap: () {
                       Navigator.pop(context);
@@ -138,7 +140,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
                     },
                   ),
                   ListTile(
-                    title: const Text('Баланс'),
+                    title: Text(t.menuBalance),
                     leading: const Icon(Icons.account_balance_wallet_outlined),
                     onTap: () {
                       Navigator.pop(context);
@@ -146,7 +148,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
                     },
                   ),
                   ListTile(
-                    title: const Text('Настройка'),
+                    title: Text(t.menuSettings),
                     leading: const Icon(Icons.settings_outlined),
                     onTap: () {
                       Navigator.pop(context);
@@ -154,7 +156,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
                     },
                   ),
                   ListTile(
-                    title: const Text('Push-уведомления'),
+                    title: Text(t.menuNotifications),
                     leading: const Icon(Icons.notifications_active_outlined),
                     onTap: () {
                       Navigator.pop(context);
@@ -203,6 +205,7 @@ class _ManzilhoBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Container(
       decoration: const BoxDecoration(color: _navBg),
       child: SafeArea(
@@ -211,11 +214,11 @@ class _ManzilhoBottomNav extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _NavItem(icon: Icons.home_outlined, selectedIcon: Icons.home, label: 'Главная', selected: currentIndex != null && currentIndex == 0, onTap: () => onTap(0)),
-              _NavItem(icon: Icons.favorite_border, selectedIcon: Icons.favorite, label: 'Избранное', selected: currentIndex != null && currentIndex == 1, badge: favoritesCount > 0 ? favoritesCount : null, onTap: () => onTap(1)),
+              _NavItem(icon: Icons.home_outlined, selectedIcon: Icons.home, label: t.navHome, selected: currentIndex != null && currentIndex == 0, onTap: () => onTap(0)),
+              _NavItem(icon: Icons.favorite_border, selectedIcon: Icons.favorite, label: t.navFavorites, selected: currentIndex != null && currentIndex == 1, badge: favoritesCount > 0 ? favoritesCount : null, onTap: () => onTap(1)),
               _CenterAddButton(onTap: () => onTap(2)),
-              _NavItem(icon: Icons.chat_bubble_outline, selectedIcon: Icons.chat_bubble, label: 'Сообщения', selected: currentIndex != null && currentIndex == 3, badge: messagesUnreadCount > 0 ? messagesUnreadCount : null, onTap: () => onTap(3)),
-              _NavItem(icon: Icons.person_outline, selectedIcon: Icons.person, label: 'Кабинет', selected: currentIndex != null && currentIndex == 4, onTap: () => onTap(4)),
+              _NavItem(icon: Icons.chat_bubble_outline, selectedIcon: Icons.chat_bubble, label: t.navMessages, selected: currentIndex != null && currentIndex == 3, badge: messagesUnreadCount > 0 ? messagesUnreadCount : null, onTap: () => onTap(3)),
+              _NavItem(icon: Icons.person_outline, selectedIcon: Icons.person, label: t.navProfile, selected: currentIndex != null && currentIndex == 4, onTap: () => onTap(4)),
             ],
           ),
         ),

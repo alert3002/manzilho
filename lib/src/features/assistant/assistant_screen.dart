@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/post_auth_redirect.dart';
+import '../../../gen_l10n/app_localizations.dart';
 
 /// Монанди SmartAssistant.jsx — заявки, форма, полигон, совпадения.
 class AssistantScreen extends StatefulWidget {
@@ -98,13 +99,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
     await _refreshAuthFlag();
     if (!mounted) return false;
     if (_hasToken) return true;
+    final loc = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'Сначала войдите: откройте «Профиль», введите номер и код из SMS.',
-        ),
+        content: Text(loc.assistantLoginFirstSnack),
         action: SnackBarAction(
-          label: 'Профиль',
+          label: loc.navProfile,
           onPressed: () => context.go(profilePathForLogin(returnTo: loginReturnPathFromContext(context))),
         ),
         duration: const Duration(seconds: 6),
@@ -117,12 +117,13 @@ class _AssistantScreenState extends State<AssistantScreen> {
     if (!mounted) return;
     if (e.response?.statusCode == 401) setState(() => _hasToken = false);
     final msg = messageFromDioException(e);
+    final loc = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
         action: e.response?.statusCode == 401
             ? SnackBarAction(
-                label: 'Профиль',
+                label: loc.navProfile,
                 onPressed: () => context.go(profilePathForLogin(returnTo: loginReturnPathFromContext(context))),
               )
             : null,
@@ -204,7 +205,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Хатогӣ дар боргирии справочникҳо')),
+          SnackBar(content: Text(AppLocalizations.of(context).assistantRefsLoadError)),
         );
       }
     }
@@ -302,7 +303,23 @@ class _AssistantScreenState extends State<AssistantScreen> {
     });
   }
 
-  void _startNewRequest() {
+  Future<void> _startNewRequest() async {
+    await _refreshAuthFlag();
+    if (!mounted) return;
+    if (!_hasToken) {
+      final loc = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(loc.assistantLoginFirstSnack),
+          action: SnackBarAction(
+            label: loc.navProfile,
+            onPressed: () => context.go(profilePathForLogin(returnTo: loginReturnPathFromContext(context))),
+          ),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+      return;
+    }
     setState(() {
       _activeRequestId = null;
       _matches = [];
@@ -364,7 +381,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
     if (!mounted) return;
     if (_polygon.isNotEmpty && _polygon.length < 3) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Полигон: минимум 3 точки (или очистите геозону).')),
+        SnackBar(content: Text(AppLocalizations.of(context).assistantPolygonMinPoints)),
       );
       return;
     }
@@ -380,7 +397,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
       }
       await _loadRequests();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Сохранено')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).assistantSaved)));
       }
     } on DioException catch (e) {
       _showDioError(e);
@@ -418,13 +435,16 @@ class _AssistantScreenState extends State<AssistantScreen> {
     if (_activeRequestId == null) return;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Удалить заявку?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Нет')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Да')),
-        ],
-      ),
+      builder: (ctx) {
+        final loc = AppLocalizations.of(ctx);
+        return AlertDialog(
+          title: Text(loc.assistantDeleteRequestTitle),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.btnNo)),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(loc.btnYes)),
+          ],
+        );
+      },
     );
     if (ok != true || !mounted) return;
     if (!await _ensureLoggedIn()) return;
@@ -438,7 +458,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
       _showDioError(e);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ошибка удаления')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).assistantDeleteFailed)));
       }
     }
   }
@@ -493,12 +513,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
     return '#$id';
   }
 
-  String _fmtRange(dynamic min, dynamic max, [String suffix = '']) {
+  String _fmtRange(AppLocalizations l10n, dynamic min, dynamic max, [String suffix = '']) {
     final a = min?.toString() ?? '';
     final b = max?.toString() ?? '';
     if (a.isNotEmpty && b.isNotEmpty) return '$a–$b$suffix';
-    if (a.isNotEmpty) return 'от $a$suffix';
-    if (b.isNotEmpty) return 'до $b$suffix';
+    if (a.isNotEmpty) return '${l10n.assistantRangeFrom} $a$suffix';
+    if (b.isNotEmpty) return '${l10n.assistantRangeTo} $b$suffix';
     return '—';
   }
 
@@ -532,6 +552,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final cardBg = theme.cardColor;
     final border = theme.dividerColor.withValues(alpha: 0.25);
@@ -539,7 +560,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
     if (_loading || _refsLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Умный помощник')),
+        appBar: AppBar(title: Text(l10n.menuSmartAssistant)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -548,14 +569,14 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Умный помощник'),
+            Text(l10n.menuSmartAssistant),
             Text(
-              'Подбор — заявка + совпадения',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              l10n.assistantSubtitle,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],
         ),
@@ -598,7 +619,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Вход не выполнен',
+                                  l10n.assistantNotLoggedTitle,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w900,
                                     color: isDark ? const Color(0xFFFED7AA) : Colors.orange.shade900,
@@ -606,7 +627,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Чтобы сохранить заявку и искать совпадения, войдите в «Профиль» по номеру телефона и коду из SMS.',
+                                  l10n.assistantNotLoggedBody,
                                   style: TextStyle(
                                     fontSize: 13,
                                     height: 1.35,
@@ -615,7 +636,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Перейти в профиль →',
+                                  l10n.assistantGoProfile,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     color: theme.colorScheme.primary,
@@ -631,7 +652,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                 ),
               ),
             _section(
-              'Мои заявки',
+              l10n.assistantMyRequests,
               isDark,
               cardBg,
               border,
@@ -640,16 +661,16 @@ class _AssistantScreenState extends State<AssistantScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _startNewRequest,
+                        onPressed: () => _startNewRequest(),
                         icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Новая заявка'),
+                        label: Text(l10n.assistantNewRequest),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 if (_requests.isEmpty)
-                  Text('Пока нет заявок. Заполните форму и нажмите «Сохранить».', style: TextStyle(color: muted))
+                  Text(l10n.assistantNoRequestsYet, style: TextStyle(color: muted))
                 else
                   ..._requests.map((r) {
                     final id = _idOf(r)!;
@@ -672,7 +693,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    Text('Заявка #$id', style: const TextStyle(fontWeight: FontWeight.w900)),
+                                    Text(l10n.assistantRequestTitle(id), style: const TextStyle(fontWeight: FontWeight.w900)),
                                     const Spacer(),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -684,7 +705,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                                             : Colors.orange.withValues(alpha: 0.12),
                                       ),
                                       child: Text(
-                                        r['is_active'] == true ? 'Активна' : 'Пауза',
+                                        r['is_active'] == true ? l10n.assistantStatusActive : l10n.assistantStatusPaused,
                                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
                                       ),
                                     ),
@@ -692,11 +713,11 @@ class _AssistantScreenState extends State<AssistantScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${city != null ? 'Город: ${_nameById(_cities, city)}' : 'Без города'} · '
-                                  'Точек: ${_polygonFromApi(r['polygon']).length}',
+                                  '${city != null ? '${l10n.assistantCityPrefix} ${_nameById(_cities, city)}' : l10n.assistantNoCity} · '
+                                  '${l10n.assistantPointsLabel} ${_polygonFromApi(r['polygon']).length}',
                                   style: TextStyle(fontSize: 12, color: muted),
                                 ),
-                                Text('Открыть →', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
+                                Text(l10n.assistantOpenArrow, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
                               ],
                             ),
                           ),
@@ -707,56 +728,56 @@ class _AssistantScreenState extends State<AssistantScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            _section('Форма заявки', isDark, cardBg, border, [
+            _section(l10n.assistantFormSection, isDark, cardBg, border, [
               _dropdown<String>(
-                'Действие',
+                l10n.assistantFieldAction,
                 _intent,
-                const [
-                  DropdownMenuItem(value: 'buy', child: Text('Покупать')),
-                  DropdownMenuItem(value: 'rent', child: Text('Снимать')),
-                  DropdownMenuItem(value: 'daily', child: Text('Посуточно')),
+                [
+                  DropdownMenuItem(value: 'buy', child: Text(l10n.assistantIntentBuy)),
+                  DropdownMenuItem(value: 'rent', child: Text(l10n.assistantIntentRent)),
+                  DropdownMenuItem(value: 'daily', child: Text(l10n.assistantIntentDaily)),
                 ],
                 (v) => setState(() => _intent = v ?? 'buy'),
               ),
-              _dropdownIntNullable('Тип объявления', _dealTypeId, _dealTypes, (v) => setState(() => _dealTypeId = v)),
-              _dropdownIntNullable('Вид объекта', _propertyTypeId, _propertyTypes, (v) => setState(() => _propertyTypeId = v)),
-              _dropdownIntNullable('Город/Район', _cityId, _cities, (v) => setState(() => _cityId = v)),
-              _dropdownIntNullable('Комнаты', _roomsId, _roomOptions, (v) => setState(() => _roomsId = v), labelKey: 'value'),
+              _dropdownIntNullable(l10n.assistantLabelDealType, _dealTypeId, _dealTypes, (v) => setState(() => _dealTypeId = v)),
+              _dropdownIntNullable(l10n.assistantLabelPropertyType, _propertyTypeId, _propertyTypes, (v) => setState(() => _propertyTypeId = v)),
+              _dropdownIntNullable(l10n.assistantLabelCity, _cityId, _cities, (v) => setState(() => _cityId = v)),
+              _dropdownIntNullable(l10n.assistantLabelRooms, _roomsId, _roomOptions, (v) => setState(() => _roomsId = v), labelKey: 'value'),
               Row(
                 children: [
-                  Expanded(child: _textField(_priceMinCtrl, 'Цена от')),
+                  Expanded(child: _textField(_priceMinCtrl, l10n.assistantLabelPriceMin)),
                   const SizedBox(width: 10),
-                  Expanded(child: _textField(_priceMaxCtrl, 'Цена до')),
+                  Expanded(child: _textField(_priceMaxCtrl, l10n.assistantLabelPriceMax)),
                 ],
               ),
               Row(
                 children: [
-                  Expanded(child: _textField(_areaTotalMinCtrl, 'Площадь м² от')),
+                  Expanded(child: _textField(_areaTotalMinCtrl, l10n.assistantLabelAreaMin)),
                   const SizedBox(width: 10),
-                  Expanded(child: _textField(_areaTotalMaxCtrl, 'Площадь м² до')),
+                  Expanded(child: _textField(_areaTotalMaxCtrl, l10n.assistantLabelAreaMax)),
                 ],
               ),
               Row(
                 children: [
-                  Expanded(child: _textField(_areaLandMinCtrl, 'Участок сот. от')),
+                  Expanded(child: _textField(_areaLandMinCtrl, l10n.assistantLabelLandMin)),
                   const SizedBox(width: 10),
-                  Expanded(child: _textField(_areaLandMaxCtrl, 'Участок сот. до')),
+                  Expanded(child: _textField(_areaLandMaxCtrl, l10n.assistantLabelLandMax)),
                 ],
               ),
-              _dropdownStrNullable('Тип участка', _landTypeKey, _landCategories, (v) => setState(() => _landTypeKey = v)),
-              _dropdownStrNullable('Вид помещения', _commercialKey, _commercialCategories, (v) => setState(() => _commercialKey = v)),
-              _dropdownStrNullable('Срок аренды', _rentalTermKey, _rentalTerms, (v) => setState(() => _rentalTermKey = v)),
+              _dropdownStrNullable(l10n.assistantLabelLandType, _landTypeKey, _landCategories, (v) => setState(() => _landTypeKey = v)),
+              _dropdownStrNullable(l10n.assistantLabelCommercial, _commercialKey, _commercialCategories, (v) => setState(() => _commercialKey = v)),
+              _dropdownStrNullable(l10n.assistantLabelRentalTerm, _rentalTermKey, _rentalTerms, (v) => setState(() => _rentalTermKey = v)),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Искать каждый день', style: TextStyle(fontWeight: FontWeight.w700)),
+                title: Text(l10n.assistantSearchDaily, style: const TextStyle(fontWeight: FontWeight.w700)),
                 value: _isActive,
                 onChanged: (v) => setState(() => _isActive = v),
               ),
             ]),
             const SizedBox(height: 12),
-            _section('Геозона на карте', isDark, cardBg, border, [
+            _section(l10n.assistantMapSection, isDark, cardBg, border, [
               Text(
-                'Включите карандаш, затем нажимайте по карте. Минимум 3 точки.',
+                l10n.assistantMapHint,
                 style: TextStyle(fontSize: 13, color: muted),
               ),
               const SizedBox(height: 10),
@@ -855,12 +876,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
                               spacing: 8,
                               runSpacing: 6,
                               children: [
-                                _miniAct('Закончить', _finishDrawing),
+                                _miniAct(l10n.assistantDrawingFinish, _finishDrawing),
                                 _miniAct(
-                                  'Удалить точку',
+                                  l10n.assistantDeleteLastPoint,
                                   _polygon.isEmpty ? null : () => setState(() => _polygon.removeLast()),
                                 ),
-                                _miniAct('Отмена', _cancelDrawing, danger: true),
+                                _miniAct(l10n.assistantDrawingCancel, _cancelDrawing, danger: true),
                               ],
                             ),
                           ),
@@ -873,8 +894,11 @@ class _AssistantScreenState extends State<AssistantScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Text(
-                    'Точка #${_selectedPointIdx! + 1}: lat ${_polygon[_selectedPointIdx!].latitude.toStringAsFixed(6)}, '
-                    'lng ${_polygon[_selectedPointIdx!].longitude.toStringAsFixed(6)}',
+                    l10n.assistantMapPoint(
+                      _selectedPointIdx! + 1,
+                      _polygon[_selectedPointIdx!].latitude.toStringAsFixed(6),
+                      _polygon[_selectedPointIdx!].longitude.toStringAsFixed(6),
+                    ),
                     style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                   ),
                 ),
@@ -885,11 +909,11 @@ class _AssistantScreenState extends State<AssistantScreen> {
                 children: [
                   OutlinedButton(
                     onPressed: _polygon.isEmpty ? null : () => setState(() => _polygon.removeLast()),
-                    child: const Text('Отменить точку'),
+                    child: Text(l10n.assistantUndoPoint),
                   ),
                   OutlinedButton(
                     onPressed: _polygon.isEmpty ? null : () => setState(() => _polygon.clear()),
-                    child: const Text('Очистить'),
+                    child: Text(l10n.assistantClearPolygon),
                   ),
                 ],
               ),
@@ -901,21 +925,21 @@ class _AssistantScreenState extends State<AssistantScreen> {
               children: [
                 FilledButton(
                   onPressed: _saving ? null : _onSave,
-                  child: Text(_saving ? 'Сохранение...' : 'Сохранить'),
+                  child: Text(_saving ? l10n.assistantSaving : l10n.btnSave),
                 ),
                 FilledButton.tonal(
                   onPressed: (_activeRequestId == null || _running) ? null : _onRun,
-                  child: Text(_running ? 'Поиск...' : 'Искать совпадение'),
+                  child: Text(_running ? l10n.assistantSearching : l10n.assistantSearchMatches),
                 ),
                 TextButton(
                   onPressed: _activeRequestId == null ? null : _onDelete,
                   style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-                  child: const Text('Удалить'),
+                  child: Text(l10n.btnDelete),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            _buildResultsTable(theme, isDark, active),
+            _buildResultsTable(theme, isDark, active, l10n),
           ],
         ),
         ),
@@ -923,9 +947,9 @@ class _AssistantScreenState extends State<AssistantScreen> {
     );
   }
 
-  Widget _buildResultsTable(ThemeData theme, bool isDark, Map<String, dynamic>? activeReq) {
+  Widget _buildResultsTable(ThemeData theme, bool isDark, Map<String, dynamic>? activeReq, AppLocalizations l10n) {
     final slice = _matches.take(4).toList();
-    final rows = _wantRows(activeReq);
+    final rows = _wantRows(activeReq, l10n);
     final borderCol = theme.dividerColor.withValues(alpha: 0.22);
     final wantTh = isDark ? const Color(0xFF14532D).withValues(alpha: 0.4) : const Color(0xFFDCFCE7);
     final wantTd = isDark ? const Color(0xFF166534).withValues(alpha: 0.14) : const Color(0xFFF0FDF4);
@@ -943,19 +967,19 @@ class _AssistantScreenState extends State<AssistantScreen> {
     return KeyedSubtree(
       key: _resultsKey,
       child: _section(
-        'Результат совпадения${_activeRequestId != null ? ' (заявка #$_activeRequestId)' : ''}',
+        _activeRequestId != null ? l10n.assistantMatchResultsForRequest(_activeRequestId!) : l10n.assistantMatchResults,
         isDark,
         theme.cardColor,
         theme.dividerColor.withValues(alpha: 0.25),
         [
           if (slice.isEmpty)
             Text(
-              'Пока нет результатов. Нажмите «Искать совпадение».',
+              l10n.assistantNoMatchResults,
               style: TextStyle(color: theme.textTheme.bodySmall?.color),
             )
           else ...[
             Text(
-              'Ҷадвалро ба чап ва рост лағжед — ҳамаи сутунҳо скролл мешаванд.',
+              l10n.assistantTableScrollHint,
               style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color, height: 1.3),
             ),
             const SizedBox(height: 10),
@@ -986,7 +1010,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                                 color: wantTh,
                                 padding: const EdgeInsets.all(10),
                                 child: Text(
-                                  'То что нужно / имеется?',
+                                  l10n.assistantCompareHeader,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 12,
@@ -995,7 +1019,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                                 ),
                               ),
                             ),
-                            for (var e in slice.asMap().entries) _variantHeaderTableCell(theme, e.value, e.key),
+                            for (var e in slice.asMap().entries) _variantHeaderTableCell(theme, e.value, e.key, l10n),
                           ],
                         ),
                         ...rows.map((row) {
@@ -1044,7 +1068,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
     );
   }
 
-  TableCell _variantHeaderTableCell(ThemeData theme, Map<String, dynamic> m, int idx) {
+  TableCell _variantHeaderTableCell(ThemeData theme, Map<String, dynamic> m, int idx, AppLocalizations l10n) {
     final listing = m['listing'] as Map<String, dynamic>?;
     final imgs = listing?['images'] as List?;
     String? first;
@@ -1059,7 +1083,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            Text('Вариант №${idx + 1}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+            Text(l10n.assistantVariantNumber(idx + 1), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
             const SizedBox(height: 6),
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
@@ -1069,9 +1093,9 @@ class _AssistantScreenState extends State<AssistantScreen> {
                       width: 120,
                       height: 84,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => _ph(),
+                      errorBuilder: (context, error, stackTrace) => _ph(l10n),
                     )
-                  : _ph(),
+                  : _ph(l10n),
             ),
             const SizedBox(height: 6),
             _scoreBadge(num.tryParse(m['score']?.toString() ?? '0') ?? 0),
@@ -1084,7 +1108,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text('Открыть'),
+                child: Text(l10n.btnOpen),
               ),
             ],
           ],
@@ -1122,12 +1146,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
     );
   }
 
-  Widget _ph() => Container(
+  Widget _ph(AppLocalizations l10n) => Container(
         width: 120,
         height: 84,
         alignment: Alignment.center,
         color: Colors.black12,
-        child: const Text('Нет фото', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+        child: Text(l10n.assistantNoPhoto, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
       );
 
   Widget _okCell(bool? ok, {required bool isDark}) {
@@ -1161,11 +1185,11 @@ class _AssistantScreenState extends State<AssistantScreen> {
     );
   }
 
-  List<_WantRow> _wantRows(Map<String, dynamic>? ar) {
+  List<_WantRow> _wantRows(Map<String, dynamic>? ar, AppLocalizations l10n) {
     return [
       _WantRow(
         'deal_type',
-        'Тип объявления',
+        l10n.assistantLabelDealType,
         () => ar != null && _parseFk(ar['deal_type']) != null
             ? _nameById(_dealTypes, _parseFk(ar['deal_type']))
             : '—',
@@ -1174,7 +1198,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
       ),
       _WantRow(
         'property_type',
-        'Вид объекта',
+        l10n.assistantLabelPropertyType,
         () => ar != null && _parseFk(ar['property_type']) != null
             ? _nameById(_propertyTypes, _parseFk(ar['property_type']))
             : '—',
@@ -1185,20 +1209,20 @@ class _AssistantScreenState extends State<AssistantScreen> {
       ),
       _WantRow(
         'city',
-        'Город/Район',
+        l10n.assistantLabelCity,
         () => ar != null && _parseFk(ar['city']) != null ? _nameById(_cities, _parseFk(ar['city'])) : '—',
         (l) => l != null && _parseFk(l['city']) != null ? _nameById(_cities, _parseFk(l['city'])) : '—',
       ),
       _WantRow(
         'rooms',
-        'Количество комнат',
+        l10n.assistantLabelRoomCount,
         () => ar != null && _parseFk(ar['rooms']) != null ? _roomLabel(_parseFk(ar['rooms'])) : '—',
         (l) => l != null && _parseFk(l['rooms']) != null ? _roomLabel(_parseFk(l['rooms'])) : '—',
       ),
       _WantRow(
         'price',
-        'Цена (сомони)',
-        () => _fmtRange(ar?['price_min'], ar?['price_max'], ''),
+        l10n.assistantLabelPriceSom,
+        () => _fmtRange(l10n, ar?['price_min'], ar?['price_max'], ''),
         (l) {
           final p = l?['price'];
           if (p == null || '$p'.isEmpty) return '—';
@@ -1207,8 +1231,8 @@ class _AssistantScreenState extends State<AssistantScreen> {
       ),
       _WantRow(
         'area_total',
-        'Площадь (м²)',
-        () => _fmtRange(ar?['area_total_min'], ar?['area_total_max'], ''),
+        l10n.assistantLabelAreaM2,
+        () => _fmtRange(l10n, ar?['area_total_min'], ar?['area_total_max'], ''),
         (l) {
           final v = l?['area_total'];
           return v != null && '$v'.isNotEmpty ? '$v' : '—';
@@ -1216,8 +1240,8 @@ class _AssistantScreenState extends State<AssistantScreen> {
       ),
       _WantRow(
         'area_land',
-        'Участок (сот.)',
-        () => _fmtRange(ar?['area_land_min'], ar?['area_land_max'], ''),
+        l10n.assistantLabelLandSot,
+        () => _fmtRange(l10n, ar?['area_land_min'], ar?['area_land_max'], ''),
         (l) {
           final v = l?['area_land'];
           return v != null && '$v'.isNotEmpty ? '$v' : '—';
@@ -1225,29 +1249,29 @@ class _AssistantScreenState extends State<AssistantScreen> {
       ),
       _WantRow(
         'land_type',
-        'Тип участка',
+        l10n.assistantLabelLandType,
         () => ar?['land_type'] != null && '${ar!['land_type']}'.isNotEmpty ? '${ar['land_type']}' : '—',
         (l) => l?['land_type'] != null && '${l!['land_type']}'.isNotEmpty ? '${l['land_type']}' : '—',
       ),
       _WantRow(
         'commercial_type',
-        'Вид помещения',
+        l10n.assistantLabelCommercial,
         () => ar?['commercial_type'] != null && '${ar!['commercial_type']}'.isNotEmpty ? '${ar['commercial_type']}' : '—',
         (l) => l?['commercial_type'] != null && '${l!['commercial_type']}'.isNotEmpty ? '${l['commercial_type']}' : '—',
       ),
       _WantRow(
         'rental_term',
-        'Срок аренды',
+        l10n.assistantLabelRentalTerm,
         () => ar?['rental_term'] != null && '${ar!['rental_term']}'.isNotEmpty ? '${ar['rental_term']}' : '—',
         (l) => l?['rental_term'] != null && '${l!['rental_term']}'.isNotEmpty ? '${l['rental_term']}' : '—',
       ),
       _WantRow(
         'polygon',
-        'Геозона',
+        l10n.assistantLabelGeo,
         () {
           final poly = ar?['polygon'];
           final n = poly is List ? poly.length : 0;
-          return n >= 3 ? 'Выбрано (точек: $n)' : '—';
+          return n >= 3 ? l10n.assistantPolygonSelected(n) : '—';
         },
         (l) {
           final lat = l?['latitude'];

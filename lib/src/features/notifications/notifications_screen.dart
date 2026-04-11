@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../widgets/shimmer.dart';
+import '../../../gen_l10n/app_localizations.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -64,6 +65,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0a0a0a) : const Color(0xFFf8f9fa);
@@ -79,7 +81,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         foregroundColor: text,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
-        title: Text('Уведомления', style: TextStyle(color: text, fontWeight: FontWeight.w800)),
+        title: Text(t.titleNotifications, style: TextStyle(color: text, fontWeight: FontWeight.w800)),
       ),
       body: RefreshIndicator(
         onRefresh: _loadNews,
@@ -97,14 +99,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     children: [
                       Text(_err!, style: TextStyle(color: text)),
                       const SizedBox(height: 12),
-                      FilledButton(onPressed: _loadNews, child: const Text('Повторить')),
+                      FilledButton(onPressed: _loadNews, child: Text(t.btnRetry)),
                     ],
                   )
                 : _news.isEmpty
                     ? ListView(
                         padding: const EdgeInsets.all(16),
                         children: [
-                          Text('Пока нет новостей.', style: TextStyle(color: muted)),
+                          Text(t.emptyNews, style: TextStyle(color: muted)),
                         ],
                       )
                     : ListView.separated(

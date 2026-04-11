@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app/theme.dart';
+import '../../gen_l10n/app_localizations.dart';
 
 class AppFooterInfo extends StatelessWidget {
   const AppFooterInfo({super.key});
@@ -60,7 +61,7 @@ class AppFooterInfo extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Служба поддержки: звоните или пишите нам.',
+            AppLocalizations.of(context).footerSupport,
             style: TextStyle(color: muted, fontSize: 12, height: 1.3),
           ),
         ],

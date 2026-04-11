@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
+import '../../../gen_l10n/app_localizations.dart';
 import '../home/widgets/listing_card.dart';
 
 /// Саҳифаи тафсилоти объявление — маълумот аз API /api/listings/:id/
@@ -33,6 +34,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
   int _currentImage = 0;
 
   Drawer _buildDrawer() {
+    final l10n = AppLocalizations.of(context);
     final compareIds = ref.watch(compareIdsProvider);
     final compareCount = compareIds?.length ?? 0;
     return Drawer(
@@ -42,7 +44,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
         children: [
           const DrawerHeaderLogo(),
           ListTile(
-            title: const Text('Главная'),
+            title: Text(l10n.navHome),
             leading: const Icon(Icons.home_outlined),
             onTap: () {
               Navigator.pop(context);
@@ -50,7 +52,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
             },
           ),
           ListTile(
-            title: const Text('Поиск'),
+            title: Text(l10n.menuSearch),
             leading: const Icon(Icons.search),
             onTap: () {
               Navigator.pop(context);
@@ -58,7 +60,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
             },
           ),
           ListTile(
-            title: const Text('Сравнение'),
+            title: Text(l10n.menuCompare),
             leading: const Icon(Icons.balance),
             trailing: compareCount > 0
                 ? Container(
@@ -73,7 +75,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
             },
           ),
           ListTile(
-            title: const Text('Умный помощник'),
+            title: Text(l10n.menuSmartAssistant),
             leading: const Icon(Icons.smart_toy),
             onTap: () {
               Navigator.pop(context);
@@ -82,7 +84,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
           ),
           const Divider(height: 1),
           ListTile(
-            title: const Text('Профиль'),
+            title: Text(l10n.navProfile),
             leading: const Icon(Icons.person_outline),
             onTap: () {
               Navigator.pop(context);
@@ -90,7 +92,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
             },
           ),
           ListTile(
-            title: const Text('Настройка'),
+            title: Text(l10n.menuSettings),
             leading: const Icon(Icons.settings_outlined),
             onTap: () {
               Navigator.pop(context);
@@ -98,7 +100,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
             },
           ),
           ListTile(
-            title: const Text('Push-уведомления'),
+            title: Text(l10n.menuPushSettings),
             leading: const Icon(Icons.notifications_active_outlined),
             onTap: () {
               Navigator.pop(context);
@@ -159,16 +161,16 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     return urls;
   }
 
-  String _title() {
+  String _title(AppLocalizations t) {
     final l = _listing;
-    if (l == null) return 'Объявление';
+    if (l == null) return t.listingFallbackTitle;
     final parts = <String>[];
     final rooms = l['rooms'];
-    if (rooms is Map && rooms['value'] != null) parts.add('${rooms['value']} комн.');
-    parts.add(_name(l['property_type']) ?? 'квартира');
-    if (rooms is! Map && rooms != null) parts.add('$rooms комн.');
+    if (rooms is Map && rooms['value'] != null) parts.add(t.listingRoomsAbbr(rooms['value'].toString()));
+    parts.add(_name(l['property_type']) ?? t.listingTypeApartmentFallback);
+    if (rooms is! Map && rooms != null) parts.add(t.listingRoomsAbbr(rooms.toString()));
     final floor = l['floor'];
-    if (floor is Map && floor['value'] != null) parts.add('${floor['value']} этаж');
+    if (floor is Map && floor['value'] != null) parts.add(t.listingFloorAbbr(floor['value'].toString()));
     if (l['area_total'] != null) parts.add('${l['area_total']} м²');
     parts.add(_name(l['mahalla']) ?? _name(l['city']) ?? '');
     return parts.where((s) => s.isNotEmpty).join(', ');
@@ -197,6 +199,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0a0a0a) : const Color(0xFFf8f9fa);
@@ -233,7 +236,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
             IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => _scaffoldKey.currentState?.openDrawer()),
           ],
         ),
-        body: Center(child: Text('Объявление не найдено.', style: TextStyle(color: muted))),
+        body: Center(child: Text(t.listingNotFound, style: TextStyle(color: muted))),
       );
     }
 
@@ -247,24 +250,24 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF2c2c2c),
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => context.pop()),
-        title: const Text('Объявление', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: Text(t.listingDetailTitle, style: const TextStyle(color: Colors.white, fontSize: 18)),
         actions: [
           IconButton(
             icon: const Icon(Icons.share, color: Colors.white),
             onPressed: () async {
-              final title = _title();
+              final title = _title(t);
               final url = 'https://manzilho.tj/listings/${widget.id}';
               try {
                 await Share.share('$title\n$url');
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Поделиться'), duration: Duration(seconds: 2)),
+                    SnackBar(content: Text(t.shareDone), duration: const Duration(seconds: 2)),
                   );
                 }
               } catch (_) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Поделиться'), duration: Duration(seconds: 2)),
+                    SnackBar(content: Text(t.shareDone), duration: const Duration(seconds: 2)),
                   );
                 }
               }
@@ -281,7 +284,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(_title(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: text)),
+            Text(_title(t), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: text)),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -291,12 +294,24 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                     runSpacing: 4,
                     children: [
                       Text('L#${_listing!['id']}', style: TextStyle(fontSize: 13, color: accent, fontWeight: FontWeight.w600)),
-                      if (images.isNotEmpty) Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.camera_alt, size: 14, color: muted), const SizedBox(width: 4), Text('${images.length} фото', style: TextStyle(fontSize: 13, color: muted))]),
-                      if (_listing!['view_count'] != null && (_listing!['view_count'] as num) > 0) Text('${_listing!['view_count']} просмотров', style: TextStyle(fontSize: 13, color: muted)),
+                      if (images.isNotEmpty)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.camera_alt, size: 14, color: muted),
+                            const SizedBox(width: 4),
+                            Text(t.listingPhotosCount(images.length), style: TextStyle(fontSize: 13, color: muted)),
+                          ],
+                        ),
+                      if (_listing!['view_count'] != null && (_listing!['view_count'] as num) > 0)
+                        Text(t.listingViewsCount((_listing!['view_count'] as num).toInt()), style: TextStyle(fontSize: 13, color: muted)),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(6)),
-                        child: Text(_listing!['deal_type'] == 1 || _name(_listing!['deal_type']) == 'Продам' ? 'Продаётся' : 'Аренда', style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
+                        child: Text(
+                          _listing!['deal_type'] == 1 || _name(_listing!['deal_type']) == 'Продам' ? t.dealForSale : t.dealForRent,
+                          style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ],
                   ),
@@ -316,8 +331,9 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                         final ok = await ref.read(compareIdsProvider.notifier).toggle(lid);
                         if (!context.mounted) return;
                         if (!ok) {
+                          final loc = AppLocalizations.of(context);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('В сравнении уже $kMaxCompareListings объявлений')),
+                            SnackBar(content: Text(loc.compareLimitReached(kMaxCompareListings))),
                           );
                         }
                       },
@@ -347,7 +363,11 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                   children: [
                     if (mainImage != null)
                       Image.network(mainImage, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1f2937), child: const Center(child: Icon(Icons.image_not_supported, color: Colors.white54)))),
-                    if (mainImage == null) Container(color: const Color(0xFF1f2937), child: Center(child: Text('Нет фото', style: TextStyle(color: muted)))),
+                    if (mainImage == null)
+                      Container(
+                        color: const Color(0xFF1f2937),
+                        child: Center(child: Text(t.assistantNoPhoto, style: TextStyle(color: muted))),
+                      ),
                     if (images.length > 1) ...[
                       Positioned(left: 12, top: 0, bottom: 0, child: Center(child: _NavBtn(icon: Icons.chevron_left, onTap: () => setState(() => _currentImage = (_currentImage - 1 + images.length) % images.length)))),
                       Positioned(right: 12, top: 0, bottom: 0, child: Center(child: _NavBtn(icon: Icons.chevron_right, onTap: () => setState(() => _currentImage = (_currentImage + 1) % images.length)))),
@@ -392,11 +412,11 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
               decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(12), border: Border.all(color: accent, width: 2)),
               child: Column(
                 children: [
-                  Text('${_price()} с.', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: text)),
+                  Text('${_price()} ${t.currencySomShort}', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: text)),
                   if (_listing!['negotiation_status'] != null) ...[
                     const SizedBox(height: 8),
                     Text(
-                      _listing!['negotiation_status'] == 'fixed' ? 'Не подлежит торгу' : 'Торг уместен',
+                      _listing!['negotiation_status'] == 'fixed' ? t.negotiationFixed : t.negotiationOk,
                       style: TextStyle(fontSize: 14, color: muted),
                     ),
                   ],
@@ -407,17 +427,17 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
 
             // О объекте
             _Block(
-              title: 'О объекте',
-              child: _SpecGrid(listing: _listing!, name: _name, text: text, muted: muted),
+              title: t.sectionAboutObject,
+              child: _SpecGrid(listing: _listing!, name: _name, text: text, muted: muted, l10n: t),
             ),
 
             // Description
             if (_listing!['description'] != null && (_listing!['description'] as String).trim().isNotEmpty)
-              _Block(title: 'Описание', child: Text(_listing!['description'].toString(), style: TextStyle(fontSize: 14, height: 1.65, color: text))),
+              _Block(title: t.listingDescription, child: Text(_listing!['description'].toString(), style: TextStyle(fontSize: 14, height: 1.65, color: text))),
 
             // Контакт: рақам бо tel: кликабел, фақат тугмаи Написать
             _Block(
-              title: 'Контакт',
+              title: t.listingContactSection,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -432,7 +452,12 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                         child: _listing!['owner_avatar'] == null ? Text((_listing!['owner_name'] ?? _listing!['owner_username'] ?? 'А').toString().substring(0, 1).toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)) : null,
                       ),
                       const SizedBox(width: 12),
-                      Expanded(child: Text(_listing!['owner_organization'] ?? _listing!['owner_name'] ?? _listing!['owner_username'] ?? 'Агент', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: accent))),
+                      Expanded(
+                        child: Text(
+                          _listing!['owner_organization'] ?? _listing!['owner_name'] ?? _listing!['owner_username'] ?? t.defaultAgentName,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: accent),
+                        ),
+                      ),
                     ],
                   ),
                   if (_phoneNumber().isNotEmpty) ...[
@@ -467,7 +492,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                         if (token == null || token.isEmpty) {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Войдите в аккаунт, чтобы написать продавцу.')),
+                              SnackBar(content: Text(t.listingLoginToMessage)),
                             );
                           }
                           return;
@@ -488,19 +513,19 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                           if (mounted) {
                             final msg = e.response?.data is Map ? (e.response!.data as Map)['error']?.toString() : null;
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(msg ?? 'Не удалось начать чат.')),
+                              SnackBar(content: Text(msg ?? t.listingChatStartFailed)),
                             );
                           }
                         } catch (_) {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Не удалось начать чат.')),
+                              SnackBar(content: Text(t.listingChatStartFailed)),
                             );
                           }
                         }
                       },
                       icon: const Icon(Icons.message, size: 18),
-                      label: const Text('Написать'),
+                      label: Text(t.listingWriteMessage),
                       style: ElevatedButton.styleFrom(backgroundColor: accentDark, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
                     ),
                   ),
@@ -511,7 +536,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
             // Similar
             if (_similar.isNotEmpty) ...[
               const SizedBox(height: 24),
-              Text('Похожие объявления', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: text)),
+              Text(t.listingSimilar, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: text)),
               const SizedBox(height: 12),
               SizedBox(
                 height: 280,
@@ -583,33 +608,34 @@ class _Block extends StatelessWidget {
 }
 
 class _SpecGrid extends StatelessWidget {
-  const _SpecGrid({required this.listing, required this.name, required this.text, required this.muted});
+  const _SpecGrid({required this.listing, required this.name, required this.text, required this.muted, required this.l10n});
   final Map<String, dynamic> listing;
   final String? Function(dynamic) name;
   final Color text;
   final Color muted;
+  final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
     final specs = <_Spec>[];
-    if (name(listing['property_type']) != null) specs.add(_Spec('Тип', name(listing['property_type'])!));
-    if (listing['area_total'] != null) specs.add(_Spec('Площадь общая', '${listing['area_total']} м²'));
-    if (listing['area_living'] != null) specs.add(_Spec('Площадь жилая', '${listing['area_living']} м²'));
+    if (name(listing['property_type']) != null) specs.add(_Spec(l10n.specType, name(listing['property_type'])!));
+    if (listing['area_total'] != null) specs.add(_Spec(l10n.specAreaTotal, '${listing['area_total']} м²'));
+    if (listing['area_living'] != null) specs.add(_Spec(l10n.specAreaLiving, '${listing['area_living']} м²'));
     if (listing['rooms'] != null) {
       final r = listing['rooms'];
-      specs.add(_Spec('Комнат', (r is Map && r['value'] != null) ? r['value'].toString() : r.toString()));
+      specs.add(_Spec(l10n.specRooms, (r is Map && r['value'] != null) ? r['value'].toString() : r.toString()));
     }
     if (listing['floor'] != null) {
       final f = listing['floor'];
-      specs.add(_Spec('Этаж', (f is Map && f['value'] != null) ? f['value'].toString() : f.toString()));
+      specs.add(_Spec(l10n.specFloor, (f is Map && f['value'] != null) ? f['value'].toString() : f.toString()));
     }
     if (listing['floors_in_building'] != null) {
       final fb = listing['floors_in_building'];
-      specs.add(_Spec('Этажей в доме', (fb is Map && fb['value'] != null) ? fb['value'].toString() : fb.toString()));
+      specs.add(_Spec(l10n.specFloorsInBuilding, (fb is Map && fb['value'] != null) ? fb['value'].toString() : fb.toString()));
     }
-    if (listing['construction_year'] != null) specs.add(_Spec('Год постройки', listing['construction_year'].toString()));
-    if (name(listing['repair']) != null) specs.add(_Spec('Ремонт', name(listing['repair'])!));
-    if (name(listing['condition']) != null) specs.add(_Spec('Состояние', name(listing['condition'])!));
+    if (listing['construction_year'] != null) specs.add(_Spec(l10n.specYearBuilt, listing['construction_year'].toString()));
+    if (name(listing['repair']) != null) specs.add(_Spec(l10n.specRepair, name(listing['repair'])!));
+    if (name(listing['condition']) != null) specs.add(_Spec(l10n.specCondition, name(listing['condition'])!));
 
     if (specs.isEmpty) return const SizedBox.shrink();
     return Wrap(

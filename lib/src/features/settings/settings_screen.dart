@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../gen_l10n/app_localizations.dart';
+import '../../app/locale_provider.dart';
 import '../../app/theme.dart';
 import '../../app/theme_mode_provider.dart';
 import '../../core/legal_urls.dart';
@@ -13,6 +15,7 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0a0a0a) : const Color(0xFFf8f9fa);
@@ -22,6 +25,8 @@ class SettingsScreen extends ConsumerWidget {
     final border = isDark ? const Color(0xFF3a3a3c) : const Color(0xFFe5e5ea);
 
     final mode = ref.watch(themeModeProvider);
+    final locale = ref.watch(appLocaleProvider);
+    final langCode = locale.languageCode.toLowerCase();
 
     return Scaffold(
       backgroundColor: bg,
@@ -29,13 +34,47 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
         children: [
           Text(
-            'Настройки',
+            t.settingsTitle,
             style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: text, letterSpacing: -0.5),
           ),
           const SizedBox(height: 8),
-          Text('Профиль, оформление и уведомления', style: TextStyle(fontSize: 15, color: muted)),
+          Text(t.settingsSubtitle, style: TextStyle(fontSize: 15, color: muted)),
           const SizedBox(height: 22),
-          _SectionTitle(label: 'Аккаунт', color: muted),
+          _SectionTitle(label: t.sectionLanguage, color: muted),
+          const SizedBox(height: 8),
+          _SettingsCard(
+            card: card,
+            border: border,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.language_outlined, color: manzilhoOrange, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(t.settingsLanguageHint, style: TextStyle(fontSize: 13, color: muted, height: 1.35))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SegmentedButton<String>(
+                    segments: [
+                      ButtonSegment<String>(value: 'tg', label: Text(t.langTajik)),
+                      ButtonSegment<String>(value: 'ru', label: Text(t.langRussian)),
+                    ],
+                    selected: {langCode == 'ru' ? 'ru' : 'tg'},
+                    onSelectionChanged: (s) {
+                      final code = s.first;
+                      setAppLocale(ref, Locale(code == 'ru' ? 'ru' : 'tg'));
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          _SectionTitle(label: t.sectionAccount, color: muted),
           const SizedBox(height: 8),
           _SettingsCard(
             card: card,
@@ -45,7 +84,7 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: const Icon(Icons.person_outline),
-                  title: const Text('Личные данные'),
+                  title: Text(t.personalData),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.go('/profile?tab=settings'),
                 ),
@@ -53,7 +92,7 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: const Icon(Icons.favorite_outline),
-                  title: const Text('Избранное'),
+                  title: Text(t.favorites),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.go('/favorites'),
                 ),
@@ -61,7 +100,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _SectionTitle(label: 'Оформление', color: muted),
+          _SectionTitle(label: t.sectionAppearance, color: muted),
           const SizedBox(height: 8),
           _SettingsCard(
             card: card,
@@ -75,20 +114,20 @@ class SettingsScreen extends ConsumerWidget {
                     children: [
                       Icon(Icons.palette_outlined, color: manzilhoOrange, size: 22),
                       const SizedBox(width: 10),
-                      Text('Тема оформления', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: text)),
+                      Expanded(child: Text(t.themeTitle, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: text))),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'В шапке приложения — уведомления; тема переключается здесь.',
+                    t.themeHint,
                     style: TextStyle(fontSize: 12, color: muted, height: 1.35),
                   ),
                   const SizedBox(height: 12),
                   SegmentedButton<ThemeMode>(
-                    segments: const [
-                      ButtonSegment(value: ThemeMode.light, label: Text('Светлая'), icon: Icon(Icons.light_mode_outlined, size: 18)),
-                      ButtonSegment(value: ThemeMode.dark, label: Text('Тёмная'), icon: Icon(Icons.dark_mode_outlined, size: 18)),
-                      ButtonSegment(value: ThemeMode.system, label: Text('Система'), icon: Icon(Icons.settings_suggest_outlined, size: 18)),
+                    segments: [
+                      ButtonSegment(value: ThemeMode.light, label: Text(t.themeLight), icon: const Icon(Icons.light_mode_outlined, size: 18)),
+                      ButtonSegment(value: ThemeMode.dark, label: Text(t.themeDark), icon: const Icon(Icons.dark_mode_outlined, size: 18)),
+                      ButtonSegment(value: ThemeMode.system, label: Text(t.themeSystem), icon: const Icon(Icons.settings_suggest_outlined, size: 18)),
                     ],
                     selected: {mode},
                     onSelectionChanged: (s) {
@@ -100,7 +139,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _SectionTitle(label: 'Уведомления', color: muted),
+          _SectionTitle(label: t.sectionNotifications, color: muted),
           const SizedBox(height: 8),
           _SettingsCard(
             card: card,
@@ -110,8 +149,8 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: const Icon(Icons.notifications_none_rounded),
-                  title: const Text('Центр уведомлений'),
-                  subtitle: Text('Сообщения и подсказки', style: TextStyle(fontSize: 13, color: muted)),
+                  title: Text(t.notificationCenter),
+                  subtitle: Text(t.notificationCenterSubtitle, style: TextStyle(fontSize: 13, color: muted)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/notifications'),
                 ),
@@ -119,8 +158,8 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: const Icon(Icons.notifications_active_outlined),
-                  title: const Text('Push-уведомления'),
-                  subtitle: Text('Разрешения системы', style: TextStyle(fontSize: 13, color: muted)),
+                  title: Text(t.pushNotifications),
+                  subtitle: Text(t.pushPermissionsSubtitle, style: TextStyle(fontSize: 13, color: muted)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/push-notifications'),
                 ),
@@ -128,7 +167,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _SectionTitle(label: 'О нас', color: muted),
+          _SectionTitle(label: t.sectionAboutShort, color: muted),
           const SizedBox(height: 8),
           _SettingsCard(
             card: card,
@@ -136,13 +175,13 @@ class SettingsScreen extends ConsumerWidget {
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               leading: const Icon(Icons.groups_outlined),
-              title: const Text('О нас'),
+              title: Text(t.aboutUs),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/about-us'),
             ),
           ),
           const SizedBox(height: 20),
-          _SectionTitle(label: 'Юридическое', color: muted),
+          _SectionTitle(label: t.sectionLegal, color: muted),
           const SizedBox(height: 8),
           _SettingsCard(
             card: card,
@@ -152,7 +191,7 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: const Icon(Icons.privacy_tip_outlined),
-                  title: const Text('Политика конфиденциальности'),
+                  title: Text(t.privacyPolicy),
                   trailing: const Icon(Icons.open_in_new, size: 18),
                   onTap: () async {
                     final u = Uri.parse(kPrivacyPolicyUrl);
@@ -165,7 +204,7 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: const Icon(Icons.description_outlined),
-                  title: const Text('Условия использования'),
+                  title: Text(t.termsOfService),
                   trailing: const Icon(Icons.open_in_new, size: 18),
                   onTap: () async {
                     final u = Uri.parse(kTermsOfServiceUrl);
@@ -178,7 +217,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _SectionTitle(label: 'О приложении', color: muted),
+          _SectionTitle(label: t.sectionAboutApp, color: muted),
           const SizedBox(height: 8),
           _SettingsCard(
             card: card,
@@ -186,7 +225,7 @@ class SettingsScreen extends ConsumerWidget {
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               leading: const Icon(Icons.info_outline_rounded),
-              title: const Text('О приложении'),
+              title: Text(t.aboutApp),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/about-app'),
             ),
@@ -194,7 +233,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 28),
           Center(
             child: Text(
-              'manzilho · версия 1.0.0',
+              t.appVersionLine,
               style: TextStyle(fontSize: 13, color: muted.withValues(alpha: 0.85)),
             ),
           ),

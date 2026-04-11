@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'dart:math' show min;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../gen_l10n/app_localizations.dart';
 import '../../app/home_refresh_provider.dart';
 import '../../app/theme.dart';
 import '../../core/api_client.dart';
@@ -32,6 +34,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<dynamic> developers = [];
   int _topDisplayCount = 20;
   int _regularDisplayCount = 20;
+
+  /// Ҷустуҷӯи hero: DropdownButton дар scroll/stack менюро вайрон мекард (Google Play usability).
+  final _heroPriceCtrl = TextEditingController();
+  final _heroCityCtrl = TextEditingController();
+  final _heroDailyDestCtrl = TextEditingController();
+  final _heroDailyStayCtrl = TextEditingController();
+  final _heroEvaluateCtrl = TextEditingController();
+  String? _heroPropertyType;
+  String? _heroRooms;
+  String? _heroDailyKind;
+  String? _heroDailyGuests;
 
   @override
   void initState() {
@@ -99,16 +112,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void dispose() {
     _slideTimer?.cancel();
     _slideController.dispose();
+    _heroPriceCtrl.dispose();
+    _heroCityCtrl.dispose();
+    _heroDailyDestCtrl.dispose();
+    _heroDailyStayCtrl.dispose();
+    _heroEvaluateCtrl.dispose();
     super.dispose();
   }
 
   void _onHeroFind(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     if (activeTab == 'evaluate') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Скоро: запрос оценки объекта.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.homeEvaluateComingSoon)));
       return;
     }
+    final parts = <String>[];
+    if (activeTab == 'buy' || activeTab == 'rent') {
+      if (_heroPropertyType != null && _heroPropertyType!.isNotEmpty) {
+        parts.add(_heroPropertyType!);
+      }
+      if (_heroRooms != null && _heroRooms!.isNotEmpty) {
+        parts.add('$_heroRooms ${l10n.homeRoomsCategory}');
+      }
+      final price = _heroPriceCtrl.text.trim();
+      if (price.isNotEmpty) parts.add('${l10n.homePriceUpTo} $price');
+      final city = _heroCityCtrl.text.trim();
+      if (city.isNotEmpty) parts.add(city);
+    } else if (activeTab == 'daily') {
+      final dest = _heroDailyDestCtrl.text.trim();
+      if (dest.isNotEmpty) parts.add(dest);
+      if (_heroDailyKind != null && _heroDailyKind!.isNotEmpty) parts.add(_heroDailyKind!);
+      if (_heroDailyGuests != null && _heroDailyGuests!.isNotEmpty) parts.add(_heroDailyGuests!);
+      final stay = _heroDailyStayCtrl.text.trim();
+      if (stay.isNotEmpty) parts.add(stay);
+    }
+    final q = parts.where((e) => e.isNotEmpty).join(' ');
+    if (q.isEmpty) {
+      context.go('/listings');
+      return;
+    }
+    context.go(Uri(path: '/listings', queryParameters: {'search': q}).toString());
   }
 
   @override
@@ -120,6 +163,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final isDark = theme.brightness == Brightness.dark;
     const int pageSize = 20; /* дар приложения ҳамеша 20 шт ва кнопка */
 
@@ -240,9 +284,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     Shadow(color: Color(0x99000000), blurRadius: 4, offset: Offset(0, 1)),
                                   ],
                                 ),
-                                children: const [
-                                  TextSpan(text: 'Если недвижимость, то\n'),
-                                  TextSpan(text: 'Manzilho.tj', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                                children: [
+                                  TextSpan(text: '${l10n.homeHeroSloganPrefix}\n'),
+                                  const TextSpan(text: 'Manzilho.tj', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                                 ],
                               ),
                             ),
@@ -252,10 +296,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _HeroTab(label: 'Купить', isActive: activeTab == 'buy', onTap: () => setState(() => activeTab = 'buy')),
-                              _HeroTab(label: 'Снять', isActive: activeTab == 'rent', onTap: () => setState(() => activeTab = 'rent')),
-                              _HeroTab(label: 'Посуточно', isActive: activeTab == 'daily', onTap: () => setState(() => activeTab = 'daily')),
-                              _HeroTab(label: 'Оценить', isActive: activeTab == 'evaluate', onTap: () => setState(() => activeTab = 'evaluate')),
+                              _HeroTab(label: l10n.homeTabBuy, isActive: activeTab == 'buy', onTap: () => setState(() => activeTab = 'buy')),
+                              _HeroTab(label: l10n.homeTabRent, isActive: activeTab == 'rent', onTap: () => setState(() => activeTab = 'rent')),
+                              _HeroTab(label: l10n.homeTabDaily, isActive: activeTab == 'daily', onTap: () => setState(() => activeTab = 'daily')),
+                              _HeroTab(label: l10n.homeTabEvaluate, isActive: activeTab == 'evaluate', onTap: () => setState(() => activeTab = 'evaluate')),
                             ],
                           ),
                         ),
@@ -275,32 +319,64 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: Column(
                             children: [
                               if (activeTab == 'buy' || activeTab == 'rent') ...[
-                                _HeroSearchSelect(items: const ['Квартиру в новостройке', 'Квартиру вторичку', 'Дом (Хавли)', 'Офис'], hint: 'Квартиру в новостройке'),
+                                _HeroSheetSelect(
+                                  selected: _heroPropertyType,
+                                  placeholder: l10n.homePropertyTypePlaceholder,
+                                  options: [
+                                    l10n.homeTypeNewApt,
+                                    l10n.homeTypeSecondaryApt,
+                                    l10n.homeTypeHouse,
+                                    l10n.homeTypeOffice,
+                                  ],
+                                  onChanged: (v) => setState(() => _heroPropertyType = v),
+                                ),
                                 const SizedBox(height: 8),
                                 Row(
                                   children: [
-                                    Expanded(child: _HeroSearchSelect(items: const ['Комнат', '1', '2', '3+'], hint: 'Комнат')),
+                                    Expanded(
+                                      child: _HeroSheetSelect(
+                                        selected: _heroRooms,
+                                        placeholder: l10n.homeRoomsCategory,
+                                        options: const ['1', '2', '3+'],
+                                        onChanged: (v) => setState(() => _heroRooms = v),
+                                      ),
+                                    ),
                                     const SizedBox(width: 8),
-                                    Expanded(child: _HeroSearchInput(placeholder: 'Цена до...')),
+                                    Expanded(child: _HeroSearchInput(controller: _heroPriceCtrl, placeholder: l10n.homePriceUpTo)),
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                _HeroSearchInput(placeholder: 'Город, район, улица...'),
+                                _HeroSearchInput(controller: _heroCityCtrl, placeholder: l10n.homeCityDistrictStreet),
                               ],
                               if (activeTab == 'daily') ...[
-                                _HeroSearchInput(placeholder: 'Куда вы хотите поехать?'),
+                                _HeroSearchInput(controller: _heroDailyDestCtrl, placeholder: l10n.homeDailyDestination),
                                 const SizedBox(height: 8),
                                 Row(
                                   children: [
-                                    Expanded(child: _HeroSearchSelect(items: const ['Квартиру', 'Дом'], hint: 'Квартиру')),
+                                    Expanded(
+                                      child: _HeroSheetSelect(
+                                        selected: _heroDailyKind,
+                                        placeholder: l10n.homeDailyApt,
+                                        options: [l10n.homeDailyApt, l10n.homeDailyHouse],
+                                        onChanged: (v) => setState(() => _heroDailyKind = v),
+                                      ),
+                                    ),
                                     const SizedBox(width: 8),
-                                    Expanded(child: _HeroSearchSelect(items: const ['1 гость', '2 гостя'], hint: '1 гость')),
+                                    Expanded(
+                                      child: _HeroSheetSelect(
+                                        selected: _heroDailyGuests,
+                                        placeholder: l10n.homeDailyGuest1,
+                                        options: [l10n.homeDailyGuest1, l10n.homeDailyGuest2],
+                                        onChanged: (v) => setState(() => _heroDailyGuests = v),
+                                      ),
+                                    ),
                                     const SizedBox(width: 8),
-                                    Expanded(child: _HeroSearchInput(placeholder: 'Заезд — Отъезд')),
+                                    Expanded(child: _HeroSearchInput(controller: _heroDailyStayCtrl, placeholder: l10n.homeDailyStay)),
                                   ],
                                 ),
                               ],
-                              if (activeTab == 'evaluate') _HeroSearchInput(placeholder: 'Адрес или описание объекта для оценки...'),
+                              if (activeTab == 'evaluate')
+                                _HeroSearchInput(controller: _heroEvaluateCtrl, placeholder: l10n.homeEvaluateHint),
                               const SizedBox(height: 14),
                               _HeroFindButton(onPressed: () => _onHeroFind(context)),
                             ],
@@ -319,14 +395,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           // ТОП: агар бор шуд ва рӯйхат холӣ бошад — тамоман пинҳон (бе placeholder)
           if (topLoading)
             _SectionContainer(
-              title: 'ТОП объявления',
-              subtitle: 'Лучшие предложения от наших партнеров',
+              title: l10n.homeTopListingsTitle,
+              subtitle: l10n.homeTopListingsSubtitle,
               child: const _ListingsSkeleton(),
             )
           else if (topListings.isNotEmpty)
             _SectionContainer(
-              title: 'ТОП объявления',
-              subtitle: 'Лучшие предложения от наших партнеров',
+              title: l10n.homeTopListingsTitle,
+              subtitle: l10n.homeTopListingsSubtitle,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -348,7 +424,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             side: BorderSide(color: theme.colorScheme.outline),
                             shape: const StadiumBorder(),
                           ),
-                          child: const Text('Загрузить ещё'),
+                          child: Text(l10n.homeLoadMore),
                         ),
                       ),
                     ),
@@ -356,8 +432,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           _SectionContainer(
-            title: 'Объявления',
-            subtitle: 'Обычные объявления',
+            title: l10n.homeListingsTitle,
+            subtitle: l10n.homeListingsSubtitle,
             child: regularLoading
                 ? const _ListingsSkeleton()
                 : regularListings.isEmpty
@@ -383,7 +459,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 side: BorderSide(color: theme.colorScheme.outline),
                                 shape: const StadiumBorder(),
                               ),
-                              child: const Text('Загрузить ещё'),
+                              child: Text(l10n.homeLoadMore),
                             ),
                           ),
                         ),
@@ -391,9 +467,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
           ),
           _MotivationSection(isDark: isDark),
-          _AuthorsSection(title: 'Риелторы', subtitle: 'Проверенные специалисты', items: realtors, isCircle: true, emptyLabel: 'Пока нет данных.', allLabel: 'Все риелторы'),
-          _AuthorsSection(title: 'Агентства', subtitle: 'Лучшие агентства недвижимости', items: agencies, isCircle: false, emptyLabel: 'Пока нет данных.', allLabel: 'Все агентства'),
-          _AuthorsSection(title: 'Застройщики', subtitle: 'Новостройки и застройщики недвижимости', items: developers, isCircle: false, emptyLabel: 'Пока нет данных.', allLabel: 'Все застройщики'),
+          _AuthorsSection(title: l10n.homeRealtorsTitle, subtitle: l10n.homeRealtorsSubtitle, items: realtors, isCircle: true, emptyLabel: l10n.homeEmptyData, allLabel: l10n.homeAllRealtors),
+          _AuthorsSection(title: l10n.homeAgenciesTitle, subtitle: l10n.homeAgenciesSubtitle, items: agencies, isCircle: false, emptyLabel: l10n.homeEmptyData, allLabel: l10n.homeAllAgencies),
+          _AuthorsSection(title: l10n.homeDevelopersTitle, subtitle: l10n.homeDevelopersSubtitle, items: developers, isCircle: false, emptyLabel: l10n.homeEmptyData, allLabel: l10n.homeAllDevelopers),
           const SizedBox(height: 18),
           const AppFooterInfo(),
           const SizedBox(height: 18),
@@ -447,7 +523,8 @@ class _HeroTab extends StatelessWidget {
 
 /// Майдони ҷустуҷӯ — фон равшан, канорҳои нарм, сояи сабук.
 class _HeroSearchInput extends StatelessWidget {
-  const _HeroSearchInput({required this.placeholder});
+  const _HeroSearchInput({required this.controller, required this.placeholder});
+  final TextEditingController controller;
   final String placeholder;
 
   @override
@@ -463,6 +540,7 @@ class _HeroSearchInput extends StatelessWidget {
       ),
       alignment: Alignment.centerLeft,
       child: TextField(
+        controller: controller,
         style: const TextStyle(color: Color(0xFF1a1a1a), fontSize: 14, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
           hintText: placeholder,
@@ -476,33 +554,99 @@ class _HeroSearchInput extends StatelessWidget {
   }
 }
 
-class _HeroSearchSelect extends StatelessWidget {
-  const _HeroSearchSelect({required this.items, required this.hint});
-  final List<String> items;
-  final String hint;
+/// Интихоб аз поёни экран — бе менюи overlay дар дохили scroll (мушкилии Google Play).
+class _HeroSheetSelect extends StatelessWidget {
+  const _HeroSheetSelect({
+    required this.selected,
+    required this.placeholder,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String? selected;
+  final String placeholder;
+  final List<String> options;
+  final ValueChanged<String> onChanged;
+
+  Future<void> _openSheet(BuildContext context) async {
+    final theme = Theme.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.only(bottom: 16),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                child: Text(
+                  placeholder,
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+              ...options.map(
+                (e) => ListTile(
+                  title: Text(e, maxLines: 3),
+                  trailing: selected == e
+                      ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
+                      : null,
+                  onTap: () {
+                    onChanged(e);
+                    Navigator.pop(ctx);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFfafafa),
+    final display = selected ?? placeholder;
+    final isPh = selected == null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: items.contains(hint) ? hint : items.first,
-          isExpanded: true,
-          isDense: true,
-          icon: Icon(Icons.expand_more_rounded, color: Colors.grey.shade700, size: 22),
-          style: const TextStyle(color: Color(0xFF1a1a1a), fontSize: 14, fontWeight: FontWeight.w500),
-          dropdownColor: const Color(0xFFfafafa),
-          borderRadius: BorderRadius.circular(12),
-          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
-          onChanged: (_) {},
+        onTap: () => _openSheet(context),
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFfafafa),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2)),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  display,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isPh ? Colors.grey.shade600 : const Color(0xFF1a1a1a),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Icon(Icons.expand_more_rounded, color: Colors.grey.shade700, size: 22),
+            ],
+          ),
         ),
       ),
     );
@@ -540,10 +684,10 @@ class _HeroFindButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.search_rounded, color: Colors.white, size: 22),
-                SizedBox(width: 10),
-                Text('Найти', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16, letterSpacing: 0.3)),
+              children: [
+                const Icon(Icons.search_rounded, color: Colors.white, size: 22),
+                const SizedBox(width: 10),
+                Text(AppLocalizations.of(context).btnFind, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16, letterSpacing: 0.3)),
               ],
             ),
           ),
@@ -627,6 +771,7 @@ class _EmptyListingsPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Center(
@@ -641,7 +786,7 @@ class _EmptyListingsPlaceholder extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Пока нет объявлений',
+              l10n.homeNoListingsYet,
               style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
             ),
           ],
@@ -661,6 +806,7 @@ class _MotivationSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 44),
       child: Column(
@@ -668,22 +814,22 @@ class _MotivationSection extends StatelessWidget {
           _MotivationCard(
             gradient: _slateGradient,
             icon: Icons.apartment,
-            title: 'Выгодная покупка новостроек',
-            text: 'Актуальные объекты от застройщиков. Спецпредложения и скидки — подберите вариант под бюджет.',
+            title: l10n.homePromoNewBuildTitle,
+            text: l10n.homePromoNewBuildText,
           ),
           const SizedBox(height: 20),
           _MotivationCard(
             gradient: _accentGradient,
             icon: Icons.home_work,
-            title: 'Ипотека на выгодных условиях',
-            text: 'Ставки от 14% годовых. Помощь в оформлении и одобрении — жильё в новостройках доступнее.',
+            title: l10n.homePromoMortgageTitle,
+            text: l10n.homePromoMortgageText,
           ),
           const SizedBox(height: 20),
           _MotivationCard(
             gradient: _tealGradient,
             icon: Icons.lock_open,
-            title: 'Аренда квартир без посредников',
-            text: 'Проверенные объявления, быстрый отклик. Снимайте жильё в новостройках удобно и безопасно.',
+            title: l10n.homePromoRentTitle,
+            text: l10n.homePromoRentText,
           ),
         ],
       ),
@@ -748,6 +894,7 @@ class _AuthorsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final list = items.take(10).toList(); /* риелторҳо 10, агентство 10, застройщики 10 */
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -773,9 +920,10 @@ class _AuthorsSection extends StatelessWidget {
               itemCount: list.length,
               itemBuilder: (_, i) {
                 final item = list[i] is Map ? list[i] as Map<String, dynamic> : <String, dynamic>{};
-                final name = item['name'] ?? item['full_name'] ?? (isCircle ? 'Риелтор' : 'Агентство');
+                final name = item['name'] ?? item['full_name'] ?? (isCircle ? l10n.homeDefaultRealtor : l10n.homeDefaultAgency);
                 final avatar = item['avatar']?.toString();
-                final count = item['listings_count'] ?? 0;
+                final countRaw = item['listings_count'] ?? 0;
+                final count = int.tryParse(countRaw.toString()) ?? 0;
                 return InkWell(
                   onTap: () {},
                   borderRadius: BorderRadius.circular(9999),
@@ -801,7 +949,12 @@ class _AuthorsSection extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(name.toString(), style: const TextStyle(color: brandPrimary, fontWeight: FontWeight.w600, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                              Text(count > 0 ? '$count предложений' : (isCircle ? 'Агент' : 'Агентство'), style: const TextStyle(color: Color(0xFF6b7280), fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              Text(
+                                count > 0 ? l10n.homeOffersCount(count) : (isCircle ? l10n.homeLabelAgent : l10n.homeLabelAgencyShort),
+                                style: const TextStyle(color: Color(0xFF6b7280), fontSize: 10),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ],
                           ),
                         ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../gen_l10n/app_localizations.dart';
+
 /// Header: логотип, колокольчик уведомлений, меню. Тема — в «Настройки».
 class ManzilhoAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ManzilhoAppBar({
@@ -50,7 +52,7 @@ class ManzilhoAppBar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 26),
           onPressed: onNotificationsTap,
-          tooltip: 'Уведомления',
+          tooltip: AppLocalizations.of(context).menuNotifications,
         ),
         IconButton(
           icon: const Icon(Icons.menu, color: Colors.white, size: 24),

@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/post_auth_redirect.dart';
+import '../../../gen_l10n/app_localizations.dart';
 
 /// Саҳифаи баланс — монанди веб: нишон додани маблағ, пополнение SmartPay.
 class BalanceScreen extends StatefulWidget {
@@ -132,7 +133,8 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
       if (status == 'Charged' && mounted) {
         _pollTimer?.cancel();
         setState(() => _pendingOrderId = null);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Баланс пополнен')));
+        final loc = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.balanceCharged)));
       }
     } catch (_) {
       // игнорируем временные сетевые ошибки при опросе
@@ -140,12 +142,11 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
   }
 
   Future<void> _goPay() async {
+    final loc = AppLocalizations.of(context);
     // Не создаём новый инвойс, если есть незавершённая оплата.
     if (_pendingOrderId != null && _pendingOrderId!.trim().isNotEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('У вас уже есть незавершённая оплата. Ожидаем подтверждение…')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.balancePendingPayment)));
       }
       _startPolling();
       _pollOrderStatus();
@@ -154,7 +155,7 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
     final raw = _amountCtrl.text.trim().replaceAll(',', '.');
     final amount = double.tryParse(raw);
     if (amount == null || amount < 2) {
-      setState(() => _paymentError = 'Минимум 2 сомони');
+      setState(() => _paymentError = loc.balanceMinAmount);
       return;
     }
     setState(() {
@@ -163,35 +164,35 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
     });
     try {
       final r = await dio.post('/api/auth/payment/create/', data: {'amount': amount});
+      if (!mounted) return;
       final data = r.data is Map ? Map<String, dynamic>.from(r.data as Map) : <String, dynamic>{};
       final link = data['payment_link']?.toString();
       final orderId = data['order_id']?.toString();
       if (link == null || link.isEmpty) {
-        setState(() => _paymentError = 'Ссылка на оплату не получена');
+        setState(() => _paymentError = loc.balanceNoPaymentLink);
         return;
       }
       setState(() => _pendingOrderId = orderId);
       final uri = Uri.tryParse(link);
       if (uri == null) {
-        setState(() => _paymentError = 'Некорректная ссылка');
+        setState(() => _paymentError = loc.balanceBadPaymentLink);
         return;
       }
       final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched && mounted) {
-        setState(() => _paymentError = 'Не удалось открыть оплату');
+      if (!mounted) return;
+      if (!launched) {
+        setState(() => _paymentError = loc.balanceOpenPaymentFailed);
         return;
       }
       _startPolling();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Завершите оплату во внешнем окне. Баланс обновится автоматически.')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.balanceCompletePaymentExternal)));
     } on DioException catch (e) {
+      if (!mounted) return;
       final err = e.response?.data is Map ? (e.response!.data as Map)['error']?.toString() : null;
-      setState(() => _paymentError = err ?? 'Ошибка создания платежа');
+      setState(() => _paymentError = err ?? loc.balanceCreatePaymentError);
     } catch (_) {
-      setState(() => _paymentError = 'Ошибка создания платежа');
+      if (!mounted) return;
+      setState(() => _paymentError = loc.balanceCreatePaymentError);
     } finally {
       if (mounted) setState(() => _paymentBusy = false);
     }
@@ -199,6 +200,7 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0a0a0a) : const Color(0xFFF8FAFC);
@@ -217,7 +219,7 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
           foregroundColor: text,
           elevation: 0,
           leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
-          title: const Text('Баланс'),
+          title: Text(t.titleBalance),
         ),
         body: Center(
           child: Padding(
@@ -227,12 +229,12 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
               children: [
                 Icon(Icons.lock_outline, size: 56, color: muted),
                 const SizedBox(height: 16),
-                Text('Войдите в профиль, чтобы видеть баланс и пополнять его.', textAlign: TextAlign.center, style: TextStyle(color: text, fontSize: 16)),
+                Text(t.balanceLoginPrompt, textAlign: TextAlign.center, style: TextStyle(color: text, fontSize: 16)),
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: () => context.go(profilePathForLogin(returnTo: loginReturnPathFromContext(context))),
                   style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.white),
-                  child: const Text('Перейти в кабинет'),
+                  child: Text(t.balanceGoToProfile),
                 ),
               ],
             ),
@@ -248,11 +250,11 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
         foregroundColor: text,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
-        title: const Text('Баланс аккаунта'),
+        title: Text(t.titleBalance),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Обновить',
+            tooltip: t.tooltipRefresh,
             onPressed: _loadingMe ? null : _loadMe,
           ),
         ],
@@ -273,7 +275,7 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Проверяем оплату…',
+                              t.balanceCheckingPayment,
                               style: TextStyle(color: muted, fontSize: 14),
                             ),
                           ),
@@ -304,11 +306,11 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _balance != null ? '${_moneyFmt.format(_balance)} с.' : '—',
+                                _balance != null ? '${_moneyFmt.format(_balance)} ${t.currencySomShort}' : '—',
                                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: text),
                               ),
                               const SizedBox(height: 4),
-                              Text('Доступный баланс', style: TextStyle(fontSize: 13, color: muted)),
+                              Text(t.labelAvailableBalance, style: TextStyle(fontSize: 13, color: muted)),
                             ],
                           ),
                         ),
@@ -326,10 +328,10 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Пополнить баланс (SmartPay)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: text)),
+                        Text(t.titleTopUpBalance, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: text)),
                         const SizedBox(height: 8),
                         Text(
-                          'Минимум 2 сомони. Оплата картой или кошельком',
+                          t.balanceTopUpHint,
                           style: TextStyle(fontSize: 13, color: muted, height: 1.4),
                         ),
                         const SizedBox(height: 14),
@@ -338,8 +340,8 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           enabled: !_paymentBusy,
                           decoration: InputDecoration(
-                            labelText: 'Сумма (сомони)',
-                            hintText: 'Например, 50',
+                            labelText: t.balanceAmountLabel,
+                            hintText: t.balanceAmountHint,
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           onChanged: (_) {
@@ -356,7 +358,7 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
-                            child: Text(_paymentBusy ? '…' : 'Перейти к оплате'),
+                            child: Text(_paymentBusy ? '…' : t.balanceProceedPay),
                           ),
                         ),
                         if (_paymentError.isNotEmpty) ...[
@@ -368,7 +370,7 @@ class _BalanceScreenState extends State<BalanceScreen> with WidgetsBindingObserv
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Пополнение баланса и списания за услуги будут отображаться здесь (история операций добавим позже).',
+                    t.balanceHistoryPlaceholder,
                     style: TextStyle(fontSize: 13, color: muted, height: 1.45),
                   ),
                 ],

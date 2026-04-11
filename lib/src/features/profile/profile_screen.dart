@@ -11,6 +11,7 @@ import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/post_auth_redirect.dart';
 import '../../core/push_notifications.dart';
+import '../../../gen_l10n/app_localizations.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -533,10 +534,11 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
   String _digitsOnly(String s) => s.replaceAll(RegExp(r'\D'), '');
 
   Future<void> _sendCode() async {
+    final l10n = AppLocalizations.of(context);
     final digits = _digitsOnly(_phoneCtrl.text);
     if (digits.length != 9 || _sendingCode) {
       if (digits.length != 9 && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Введите 9 цифр номера (например 921234567).')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.authErrorPhoneDigits)));
       }
       return;
     }
@@ -569,7 +571,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
       } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
         msg = 'Таймаут: проверьте интернет или попробуйте позже.';
       } else if (e.type == DioExceptionType.connectionError) {
-        msg = 'Нет связи с сервером. Интернет выключен или API недоступен (debug → нужен запущенный backend).';
+        msg = l10n.networkError;
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } catch (_) {
@@ -580,13 +582,15 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     }
   }
 
-  Future<void> _verifyCode() async {
+  Future<void> _verifyCode({bool autoSubmit = false}) async {
+    final l10n = AppLocalizations.of(context);
     final phone = _normalizedPhone.isNotEmpty ? _normalizedPhone : _normalizePhone(_phoneCtrl.text);
     final code = _codeCtrl.text.trim();
     if (phone.isEmpty || _verifying) return;
     if (code.length != 4) {
-      if (code.isNotEmpty && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Введите 4 цифры кода из SMS.')));
+      if (!mounted) return;
+      if (!autoSubmit) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.authErrorCodeDigits)));
       }
       return;
     }
@@ -596,9 +600,15 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
       final data = r.data is Map ? Map<String, dynamic>.from(r.data as Map) : <String, dynamic>{};
       final access = (data['access'] ?? '').toString();
       final isRegistered = data['is_registered'] == true;
-      if (access.isNotEmpty) {
-        await setAccessToken(access);
+      if (access.isEmpty) {
+        if (mounted) {
+          setState(() => _verifying = false);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.authErrorNoAccess)));
+        }
+        return;
       }
+      await setAccessToken(access);
+      if (!mounted) return;
       setState(() {
         _verifying = false;
         _needsRegistration = !isRegistered;
@@ -606,24 +616,41 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
       });
       if (isRegistered) {
         await _loadMe();
-        if (mounted && _me != null) {
+        if (!mounted) return;
+        if (_me != null) {
           await syncFcmTokenAfterLogin();
           _redirectAfterAuthIfNeeded();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.authProfileLoadError)));
         }
       }
-    } catch (e) {
-      setState(() => _verifying = false);
-      _codeCtrl.clear();
+    } on DioException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Неверный код.')));
+        setState(() => _verifying = false);
+        _codeCtrl.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(messageFromDioException(e))),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _verifying = false);
+        _codeCtrl.clear();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.authErrorWrongCode)));
       }
     }
   }
 
   Future<void> _completeRegistration() async {
     if (_registering) return;
+    final l10n = AppLocalizations.of(context);
     final fullName = _fullNameCtrl.text.trim();
-    if (fullName.isEmpty) return;
+    if (fullName.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.authErrorFullName)));
+      }
+      return;
+    }
     setState(() => _registering = true);
     try {
       final body = <String, dynamic>{
@@ -1036,6 +1063,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     final text = isDark ? const Color(0xFFe5e7eb) : const Color(0xFF111827);
     final muted = isDark ? const Color(0xFF9ca3af) : const Color(0xFF6b7280);
     final accent = const Color(0xFFE79A3E);
+    final l10n = AppLocalizations.of(context);
 
     if (_loading) {
       return Scaffold(backgroundColor: bg, body: const Center(child: CircularProgressIndicator()));
@@ -1045,18 +1073,25 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     if (_me == null) {
       return Scaffold(
         backgroundColor: bg,
+        resizeToAvoidBottomInset: true,
         body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(16), border: Border.all(color: border)),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+              return SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomInset),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight - MediaQuery.paddingOf(context).vertical - 24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(16), border: Border.all(color: border)),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                       Image.asset(
                         'assets/logo512.png',
                         height: 72,
@@ -1064,12 +1099,10 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         errorBuilder: (_, __, ___) => Icon(Icons.person, size: 56, color: accent),
                       ),
                       const SizedBox(height: 14),
-                      Text(_needsRegistration ? 'Регистрация' : 'Вход', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: text)),
+                      Text(_needsRegistration ? l10n.authTitleRegister : l10n.authTitleLogin, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: text)),
                       const SizedBox(height: 8),
                       Text(
-                        _needsRegistration
-                            ? 'Заполните данные профиля.'
-                            : 'Введите телефон и код из SMS, чтобы войти.',
+                        _needsRegistration ? l10n.authHintRegister : l10n.authHintLogin,
                         textAlign: TextAlign.center,
                         style: TextStyle(color: muted, fontSize: 14),
                       ),
@@ -1078,14 +1111,16 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                       if (!_needsRegistration) ...[
                         TextField(
                           controller: _phoneCtrl,
-                          keyboardType: TextInputType.number,
+                          keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.telephoneNumber],
                           maxLength: 9,
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
                             LengthLimitingTextInputFormatter(9),
                           ],
                           decoration: InputDecoration(
-                            labelText: 'Телефон',
+                            labelText: l10n.authLabelPhone,
                             hintText: '921234567',
                             counterText: '',
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -1096,22 +1131,24 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                           TextField(
                             controller: _codeCtrl,
                             keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.done,
                             maxLength: 4,
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
                               LengthLimitingTextInputFormatter(4),
                             ],
                             decoration: InputDecoration(
-                              labelText: 'Код',
-                              hintText: 'Код из SMS',
+                              labelText: l10n.authLabelCode,
+                              hintText: l10n.authHintSmsCode,
                               counterText: '',
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             onChanged: (v) {
                               if (v.length == 4) {
-                                _verifyCode();
+                                _verifyCode(autoSubmit: true);
                               }
                             },
+                            onSubmitted: (_) => _verifyCode(),
                           ),
                           const SizedBox(height: 12),
                         ],
@@ -1121,16 +1158,16 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                             child: FilledButton(
                               onPressed: _sendingCode ? null : _sendCode,
                               style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
-                              child: Text(_sendingCode ? '...' : 'Получить код'),
+                              child: Text(_sendingCode ? '...' : l10n.authGetCode),
                             ),
                           ),
                         if (_codeSent) ...[
                           SizedBox(
                             width: double.infinity,
                             child: FilledButton(
-                              onPressed: _verifying ? null : _verifyCode,
+                              onPressed: _verifying ? null : () => _verifyCode(),
                               style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2563eb), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
-                              child: Text(_verifying ? '...' : 'Войти'),
+                              child: Text(_verifying ? '...' : l10n.btnLogin),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -1139,8 +1176,8 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                               onPressed: (_sendingCode || _resendSecondsLeft > 0) ? null : _sendCode,
                               child: Text(
                                 _sendingCode
-                                    ? 'Отправка…'
-                                    : (_resendSecondsLeft > 0 ? 'Отправить код ещё раз ($_resendSecondsLeft с)' : 'Отправить код ещё раз'),
+                                    ? l10n.authSending
+                                    : (_resendSecondsLeft > 0 ? l10n.authResendCodeIn(_resendSecondsLeft) : l10n.authResendCode),
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: (_sendingCode || _resendSecondsLeft > 0) ? muted : accent,
@@ -1153,7 +1190,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         TextField(
                           controller: _fullNameCtrl,
                           decoration: InputDecoration(
-                            labelText: 'Имя и фамилия',
+                            labelText: l10n.authLabelFullName,
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
@@ -1161,15 +1198,15 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         DropdownButtonFormField<String>(
                           initialValue: _role,
                           decoration: InputDecoration(
-                            labelText: 'Роль',
+                            labelText: l10n.authLabelRole,
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          items: const [
-                            DropdownMenuItem(value: 'user', child: Text('Пользователь')),
-                            DropdownMenuItem(value: 'owner', child: Text('Собственник')),
-                            DropdownMenuItem(value: 'agent', child: Text('Агент')),
-                            DropdownMenuItem(value: 'agency', child: Text('Агентство')),
-                            DropdownMenuItem(value: 'developer', child: Text('Застройщик')),
+                          items: [
+                            DropdownMenuItem(value: 'user', child: Text(l10n.authRoleUser)),
+                            DropdownMenuItem(value: 'owner', child: Text(l10n.authRoleOwner)),
+                            DropdownMenuItem(value: 'agent', child: Text(l10n.authRoleAgent)),
+                            DropdownMenuItem(value: 'agency', child: Text(l10n.authRoleAgency)),
+                            DropdownMenuItem(value: 'developer', child: Text(l10n.authRoleDeveloper)),
                           ],
                           onChanged: (v) => setState(() => _role = v ?? 'user'),
                         ),
@@ -1185,14 +1222,14 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                             );
                             if (picked != null) setState(() => _birthDate = picked);
                           },
-                          child: Text(_birthDate == null ? 'Дата рождения' : 'Дата рождения: ${_birthDate!.toIso8601String().split('T').first}'),
+                          child: Text(_birthDate == null ? l10n.authBirthDate : '${l10n.authBirthDate}: ${_birthDate!.toIso8601String().split('T').first}'),
                         ),
                         const SizedBox(height: 12),
                         if (_role == 'agent')
                           TextField(
                             controller: _agencyCodeCtrl,
                             decoration: InputDecoration(
-                              labelText: 'Код агентства (если есть)',
+                              labelText: l10n.authAgencyCodeIfAny,
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
@@ -1202,15 +1239,18 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                           child: FilledButton(
                             onPressed: _registering ? null : _completeRegistration,
                             style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
-                            child: Text(_registering ? '...' : 'Завершить регистрацию'),
+                            child: Text(_registering ? '...' : l10n.authCompleteRegistration),
                           ),
                         ),
                       ],
                     ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       );
@@ -1300,7 +1340,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text('Кабинет', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: text)),
+                  Text(l10n.profileCabinet, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: text)),
                   const Spacer(),
                   Material(
                     color: Colors.transparent,
@@ -1342,7 +1382,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                 children: [
                   Expanded(
                     child: _StatCard(
-                      title: 'В избранном',
+                      title: l10n.profileStatInFavorites,
                       value: '$_favoritesCount',
                       icon: Icons.favorite,
                       color: accent,
@@ -1356,7 +1396,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                   const SizedBox(width: 12),
                   Expanded(
                     child: _StatCard(
-                      title: 'Объявления',
+                      title: l10n.profileStatListings,
                       value: listingCount != null ? '$listingCount' : '—',
                       icon: Icons.list,
                       color: const Color(0xFF22c55e),
@@ -1383,10 +1423,16 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                   children: [
                     Text(fullName.isNotEmpty ? fullName : _normalizedPhone, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: text)),
                     const SizedBox(height: 6),
-                    Text('Роль: $role', style: TextStyle(color: muted, fontSize: 13)),
+                    Text('${l10n.profileRolePrefix} $role', style: TextStyle(color: muted, fontSize: 13)),
                     if (listingLimit != null && listingCount != null) ...[
                       const SizedBox(height: 6),
-                      Text('Лимит объявлений: $listingCount / $listingLimit', style: TextStyle(color: muted, fontSize: 13)),
+                      Text(
+                        l10n.profileListingLimit(
+                          int.tryParse('$listingCount') ?? 0,
+                          int.tryParse('$listingLimit') ?? 0,
+                        ),
+                        style: TextStyle(color: muted, fontSize: 13),
+                      ),
                     ],
                     const SizedBox(height: 12),
                     Row(
@@ -1395,7 +1441,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                           child: FilledButton.icon(
                             onPressed: () => context.go('/messages'),
                             icon: const Icon(Icons.chat_bubble),
-                            label: const Text('Сообщения'),
+                            label: Text(l10n.navMessages),
                             style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2563eb), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
                           ),
                         ),
@@ -1404,7 +1450,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                           child: FilledButton.icon(
                             onPressed: () => context.go('/settings'),
                             icon: const Icon(Icons.settings),
-                            label: const Text('Настройки'),
+                            label: Text(l10n.menuSettings),
                             style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
                           ),
                         ),
@@ -1429,7 +1475,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                       Row(
                         children: [
                           Expanded(
-                            child: Text('Мои объявления', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: text)),
+                            child: Text(l10n.profileMyListingsTitle, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: text)),
                           ),
                           if (_myListingsLoading)
                             const SizedBox(
@@ -1441,7 +1487,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                             IconButton(
                               onPressed: _loadMyListings,
                               icon: const Icon(Icons.refresh),
-                              tooltip: 'Обновить список',
+                              tooltip: l10n.tooltipRefreshList,
                               color: text,
                             ),
                         ],
@@ -1449,7 +1495,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                       if (canManageMyListings) ...[
                         const SizedBox(height: 6),
                         Text(
-                          'Действия: Изменить · Скрыть/Активировать · Обновить (раз в 14 дней) · В ТОП · В архив · Открыть',
+                          l10n.profileDashboardActionsHint,
                           style: TextStyle(fontSize: 12, color: muted, height: 1.45),
                         ),
                       ],
@@ -1458,7 +1504,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           child: Text(
-                            'Управление объявлениями доступно собственникам и агентам.',
+                            l10n.profileMyListingsRestricted,
                             style: TextStyle(color: muted, fontSize: 14),
                           ),
                         )
@@ -1476,24 +1522,24 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                                 FilledButton(
                                   onPressed: _myListingsBulkBumpBusy || _selectedMyListingIds.isEmpty ? null : _bulkBumpSelectedMyListings,
                                   style: FilledButton.styleFrom(backgroundColor: green, foregroundColor: Colors.white),
-                                  child: Text(_myListingsBulkBumpBusy ? '...' : 'Обновить выбранные (${_selectedMyListingIds.length})'),
+                                  child: Text(_myListingsBulkBumpBusy ? '...' : l10n.profileBulkBumpSelected(_selectedMyListingIds.length)),
                                 ),
                                 const SizedBox(width: 8),
                                 OutlinedButton(
                                   onPressed: _myListingsBulkArchiveBusy || _selectedMyListingIds.isEmpty ? null : _bulkArchiveSelectedMyListings,
-                                  child: Text(_myListingsBulkArchiveBusy ? '...' : 'В архив выбранные (${_selectedMyListingIds.length})'),
+                                  child: Text(_myListingsBulkArchiveBusy ? '...' : l10n.profileBulkArchiveSelected(_selectedMyListingIds.length)),
                                 ),
                               ] else ...[
                                 FilledButton(
                                   onPressed: _myListingsBulkBumpBusy || _selectedMyListingIds.isEmpty ? null : _bulkRestoreSelectedTrash,
                                   style: FilledButton.styleFrom(backgroundColor: green, foregroundColor: Colors.white),
-                                  child: Text(_myListingsBulkBumpBusy ? '...' : 'Восстановить (${_selectedMyListingIds.length})'),
+                                  child: Text(_myListingsBulkBumpBusy ? '...' : l10n.profileBulkRestoreSelected(_selectedMyListingIds.length)),
                                 ),
                                 const SizedBox(width: 8),
                                 FilledButton(
                                   onPressed: _myListingsBulkArchiveBusy || _selectedMyListingIds.isEmpty ? null : _bulkDeleteForeverSelected,
                                   style: FilledButton.styleFrom(backgroundColor: const Color(0xFF7f1d1d), foregroundColor: Colors.white),
-                                  child: Text(_myListingsBulkArchiveBusy ? '...' : 'Удалить навсегда (${_selectedMyListingIds.length})'),
+                                  child: Text(_myListingsBulkArchiveBusy ? '...' : l10n.profileBulkDeleteForeverSelected(_selectedMyListingIds.length)),
                                 ),
                               ],
                               const SizedBox(width: 12),
@@ -1502,7 +1548,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                                   _myListingsTrashView = !_myListingsTrashView;
                                   _selectedMyListingIds.clear();
                                 }),
-                                child: Text(_myListingsTrashView ? 'Вернуться' : 'Корзина ($archivedN)'),
+                                child: Text(_myListingsTrashView ? l10n.profileTrashBack : l10n.profileTrashBin(archivedN)),
                               ),
                             ],
                           ),
@@ -1514,14 +1560,14 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                             child: Column(
                               children: [
                                 Text(
-                                  _myListingsTrashView ? 'Корзина пуста.' : 'Нет объявлений.',
+                                  _myListingsTrashView ? l10n.profileTrashEmpty : l10n.profileNoListings,
                                   style: TextStyle(color: muted, fontSize: 15),
                                 ),
                                 if (!_myListingsTrashView && _myListings.isEmpty) ...[
                                   const SizedBox(height: 12),
                                   FilledButton(
                                     onPressed: () => context.push('/add'),
-                                    child: const Text('Добавить объявление'),
+                                    child: Text(l10n.profileAddListing),
                                   ),
                                 ],
                               ],
@@ -1551,7 +1597,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                                   },
                                 ),
                               ),
-                              Text('Выбрать все', style: TextStyle(fontSize: 13, color: muted)),
+                              Text(l10n.profileSelectAll, style: TextStyle(fontSize: 13, color: muted)),
                             ],
                           ),
                           const SizedBox(height: 6),
@@ -1599,20 +1645,20 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                   IconButton(
                     onPressed: _onProfileBack,
                     icon: Icon(Icons.arrow_back, color: text),
-                    tooltip: 'Назад',
+                    tooltip: l10n.tooltipBack,
                   ),
                   Expanded(
-                    child: Text(fullName.isNotEmpty ? fullName : 'Профиль', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: text), overflow: TextOverflow.ellipsis),
+                    child: Text(fullName.isNotEmpty ? fullName : l10n.navProfile, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: text), overflow: TextOverflow.ellipsis),
                   ),
                   IconButton(
                     onPressed: () => setState(() => _activeTab = 'overview'),
                     icon: Icon(Icons.dashboard, color: _activeTab == 'overview' ? accent : muted),
-                    tooltip: 'Кабинет',
+                    tooltip: l10n.tooltipCabinet,
                   ),
                   IconButton(
                     onPressed: () => context.go('/settings'),
                     icon: Icon(Icons.settings, color: muted),
-                    tooltip: 'Настройки приложения',
+                    tooltip: l10n.tooltipAppSettings,
                   ),
                 ],
               ),
