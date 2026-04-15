@@ -766,6 +766,26 @@ class AppLocalizationsRu extends AppLocalizations {
   String get btnCancel => 'Отмена';
 
   @override
+  String get settingsDeleteAccount => 'Удалить аккаунт';
+
+  @override
+  String get settingsDeleteAccountHint =>
+      'Это действие необратимо. Ваш аккаунт и данные будут удалены.';
+
+  @override
+  String get deleteAccountConfirmTitle => 'Удалить аккаунт?';
+
+  @override
+  String get deleteAccountConfirmBody =>
+      'Это действие необратимо. После удаления вы потеряете доступ к аккаунту и данным.';
+
+  @override
+  String get deleteAccountDeleted => 'Аккаунт удалён';
+
+  @override
+  String get deleteAccountDeleteFailed => 'Не удалось удалить аккаунт';
+
+  @override
   String get tooltipRefresh => 'Обновить';
 
   @override

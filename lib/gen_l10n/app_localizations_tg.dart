@@ -768,6 +768,26 @@ class AppLocalizationsTg extends AppLocalizations {
   String get btnCancel => 'Бекор';
 
   @override
+  String get settingsDeleteAccount => 'Ҳисобро ҳазф кардан';
+
+  @override
+  String get settingsDeleteAccountHint =>
+      'Ин амал бозгашт надорад. Ҳисоб ва маълумотҳои шумо ҳазф мешаванд.';
+
+  @override
+  String get deleteAccountConfirmTitle => 'Ҳисобро ҳазф мекунед?';
+
+  @override
+  String get deleteAccountConfirmBody =>
+      'Ин амал бозгашт надорад. Пас аз ҳазф шумо дастрасӣ ба ҳисоб ва маълумотҳоро аз даст медиҳед.';
+
+  @override
+  String get deleteAccountDeleted => 'Ҳисоб ҳазф шуд';
+
+  @override
+  String get deleteAccountDeleteFailed => 'Ҳисобро ҳазф карда натавонист';
+
+  @override
   String get tooltipRefresh => 'Нав кардан';
 
   @override

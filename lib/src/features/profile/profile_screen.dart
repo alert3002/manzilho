@@ -44,6 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
   int _favoritesCount = 0;
   String _activeTab = 'overview'; // overview|settings
   bool _savingProfile = false;
+  bool _deletingAccount = false;
   final _settingsFullNameCtrl = TextEditingController();
   DateTime? _settingsBirthDate;
   final _settingsAgencyCodeCtrl = TextEditingController();
@@ -747,6 +748,48 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     }
   }
 
+  Future<void> _deleteAccount() async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(l10n.deleteAccountConfirmTitle),
+          content: Text(l10n.deleteAccountConfirmBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.btnCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFdc2626), foregroundColor: Colors.white),
+              child: Text(l10n.settingsDeleteAccount),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || _deletingAccount) return;
+
+    setState(() => _deletingAccount = true);
+    try {
+      await dio.delete('/api/auth/delete-account/');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.deleteAccountDeleted)));
+      await _logout();
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final msg = messageFromDioException(e);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.deleteAccountDeleteFailed)));
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
+    }
+  }
+
   void _onProfileBack() {
     if (_activeTab == 'settings') {
       setState(() => _activeTab = 'overview');
@@ -1326,6 +1369,23 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    Divider(height: 1, color: border),
+                    const SizedBox(height: 12),
+                    Text(l10n.settingsDeleteAccountHint, style: TextStyle(color: muted, fontSize: 12)),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _deletingAccount ? null : _deleteAccount,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          foregroundColor: const Color(0xFFdc2626),
+                          side: const BorderSide(color: Color(0xFFdc2626)),
+                        ),
+                        child: Text(_deletingAccount ? '...' : l10n.settingsDeleteAccount, overflow: TextOverflow.ellipsis),
+                      ),
                     ),
                   ],
                 ),

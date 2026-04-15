@@ -1514,6 +1514,42 @@ abstract class AppLocalizations {
   /// **'Отмена'**
   String get btnCancel;
 
+  /// No description provided for @settingsDeleteAccount.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалить аккаунт'**
+  String get settingsDeleteAccount;
+
+  /// No description provided for @settingsDeleteAccountHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Это действие необратимо. Ваш аккаунт и данные будут удалены.'**
+  String get settingsDeleteAccountHint;
+
+  /// No description provided for @deleteAccountConfirmTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалить аккаунт?'**
+  String get deleteAccountConfirmTitle;
+
+  /// No description provided for @deleteAccountConfirmBody.
+  ///
+  /// In ru, this message translates to:
+  /// **'Это действие необратимо. После удаления вы потеряете доступ к аккаунту и данным.'**
+  String get deleteAccountConfirmBody;
+
+  /// No description provided for @deleteAccountDeleted.
+  ///
+  /// In ru, this message translates to:
+  /// **'Аккаунт удалён'**
+  String get deleteAccountDeleted;
+
+  /// No description provided for @deleteAccountDeleteFailed.
+  ///
+  /// In ru, this message translates to:
+  /// **'Не удалось удалить аккаунт'**
+  String get deleteAccountDeleteFailed;
+
   /// No description provided for @tooltipRefresh.
   ///
   /// In ru, this message translates to:
